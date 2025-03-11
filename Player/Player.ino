@@ -4,6 +4,13 @@
 #include <ArduinoBLE.h>
 #include "Icons.h"
 
+enum Item
+{
+  None,
+  Medkit,
+  Beer
+};
+
 BLEService GamePawn("10e62b35-1ed8-4149-aeca-4df2e8b24132");
 
 BLEIntCharacteristic switchCharacteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132", BLERead | BLEWrite);
@@ -16,6 +23,8 @@ int MaxHealth = 5;
 
 int itemsInInventory = 0;
 int maxItems = 3;
+
+Item Inventory[3] /*= {Item.None, Item.None, Item.None}*/;
 
 void setup() {
   // put your setup code here, to run once:
@@ -46,6 +55,9 @@ void setup() {
   Screen.drawBox(2, 2, 100, 50);
   Screen.sendBuffer();
 
+  for (int x = 0; x < GetArrayLength(sizeof(Inventory),sizeof(Inventory[0])); x++)
+    Inventory[x] = Item::None;
+
   Serial.println("Trying to connect");
 }
 
@@ -69,7 +81,7 @@ void loop() {
       if (switchCharacteristic.written())
       if (switchCharacteristic.value() == 1)
       {
-        Increment();
+        AddItemTest();
         switchCharacteristic.writeValue(0);
         UpdateDisplay();
       }
@@ -88,21 +100,62 @@ void loop() {
 
 void Increment()
 {
-    itemsInInventory++;
-    itemsInInventory = itemsInInventory % (maxItems+1);
+  itemsInInventory++;
+  itemsInInventory = itemsInInventory % (maxItems+1);
+}
+
+void AddItemTest()
+{
+  if (itemsInInventory+1 <= GetArrayLength(sizeof(Inventory),sizeof(Inventory[0])))
+    Inventory[itemsInInventory++] = (Item)random(1,GetArrayLength(sizeof(Inventory),sizeof(Inventory[0])));
+
+  else
+  {
+    for (int x = 0; x < GetArrayLength(sizeof(Inventory),sizeof(Inventory[0])); x++)
+      Inventory[x] = Item::None;
+    
+    itemsInInventory = 0;
+  }
 }
 
 void UpdateDisplay()
 {
   Screen.clearBuffer();
   Screen.drawStr(0, 10, "Player 1");
-  for (int x = 0; x < itemsInInventory; x++)
+  /*for (int x = 0; x < itemsInInventory; x++)
   {
     int difference = 42-32;
     int xPos = x * 42 + difference/2;
     int yPos = 16+difference/2;
     Screen.drawXBMP(xPos, yPos, 32, 32, ItemPlaceholder);
+  }*/
+
+  int items = 0;
+
+  for (int x = 0; x < GetArrayLength(sizeof(Inventory),sizeof(Inventory[0])); x++)
+  {
+    if (Inventory[x] != Item::None)
+    {
+      int difference = 42-32;
+      int xPos = items++ * 42 + difference/2;
+      int yPos = 16+difference/2;
+
+      switch(Inventory[x])
+      {
+        case Item::Medkit:
+          Screen.drawXBMP(xPos, yPos, 32, 32, MedKitIcon);
+          break;
+        case Item::Beer:
+          Screen.drawXBMP(xPos, yPos, 32, 32, BeerIcon);
+          break;
+      }
+    }
   }
   
   Screen.sendBuffer();
+}
+
+int GetArrayLength(int arraySize, int byteSize)
+{
+  return arraySize/byteSize;
 }
