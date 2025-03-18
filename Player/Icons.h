@@ -44,7 +44,7 @@ uint8_t BeerIcon[] = {
 
 int GetIconDimension(uint8_t icon[])
 {
-  return sqrt(sizeof(icon) / sizeof(icon[0]));
+  return sqrt((sizeof(icon) / sizeof(icon[0]))*8);
 }
 
 #endif

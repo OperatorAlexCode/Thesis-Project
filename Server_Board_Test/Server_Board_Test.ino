@@ -25,13 +25,17 @@ int buttonState = 0;
 int state = 0;
 bool isPressed = false;
 
+const int buttonPins[] = {3, 5};
+int buttonStates[2];
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   while (!Serial);
 
   pinMode(LEDR, OUTPUT); 
-  pinMode(buttonPin, INPUT);
+  pinMode(buttonPins[0], INPUT);
+  pinMode(buttonPins[1], INPUT);
 
   BLE.begin();
   
@@ -94,20 +98,27 @@ void loop() {
       return;
     }
 
-    BLECharacteristic characteristic = pawn.characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132");
+    BLECharacteristic button1 = pawn.characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132",0);
+    BLECharacteristic button2 = pawn.characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132",1);
 
     while (pawn.connected())
     {
       // Button toggle
-      buttonState = digitalRead(buttonPin);
+      buttonStates[0] = digitalRead(buttonPins[0]);
+      buttonStates[1] = digitalRead(buttonPins[1]);
 
-      if (buttonState == LOW && !isPressed)
+      if (buttonStates[0] == LOW && !isPressed)
       {
         //digitalWrite(LEDR, (PinStatus)((++state)%2));
         isPressed = true;
-        characteristic.writeValue((byte)(0x01));
+        button1.writeValue((byte)(0x01));
       }
-      else if (buttonState == HIGH)
+      else if (buttonStates[1] == LOW && !isPressed)
+      {
+        isPressed = true;
+        button2.writeValue((byte)(0x01));
+      }
+      else if (buttonStates[0] == HIGH && buttonStates[1] == HIGH)
       {
         isPressed = false;
       }
