@@ -3,6 +3,7 @@
 #include <U8g2lib.h>
 #include <ArduinoBLE.h>
 #include "Icons.h"
+#include <Adafruit_NeoPixel.h>
 
 enum Item
 {
@@ -18,16 +19,18 @@ BLEIntCharacteristic Button2Characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132
 
 U8G2_SSD1306_128X64_NONAME_F_SW_I2C Screen(U8G2_R0,/*clock=*/22,/*data=*/21,U8X8_PIN_NONE);
 
-int Health = 5;
-int MaxHealth = 5;
+Adafruit_NeoPixel HealthBar = Adafruit_NeoPixel(8,15);
 
-int itemsInInventory = 2;
+int Health = 0;
+int MaxHealth = 6;
+
+int itemsInInventory = 0;
 int maxItems = 3;
 
 int PlayerId = 1;
 
 const int InventorySize = 3;
-Item Inventory[InventorySize] = {Item::Medkit, Item::None, Item::Beer};
+Item Inventory[3] /*= {Item::Medkit, Item::None, Item::Beer}*/;
 
 void setup() {
   // put your setup code here, to run once:
@@ -76,6 +79,51 @@ void loop() {
     // while the central is still connected to peripheral:
     while (central.connected())
     {
+      HealthBar.clear();
+
+      // Simple
+      /*for (int x = 0; x < Health;x++)
+      {
+        HealthBar.setPixelColor(x,HealthBar.Color(20,0,0));
+      }*/
+
+      // Step Gradient
+      /*for (int x = 0; x < Health;x++)
+      {
+        uint32_t color = HealthBar.Color(0, 20, 0);
+
+        if (x < 2)
+          color = HealthBar.Color(20, 0, 0);
+        else if (x < 4)
+          color = HealthBar.Color(20, 10, 0);
+        
+         HealthBar.setPixelColor(x, color);
+      }*/
+
+      // Whole Color Gradient
+      /*uint32_t color = HealthBar.Color(20, 0, 0);
+
+      if (Health > 1)
+        color = HealthBar.Color(20/Health, (Health-1)*4, 0);
+
+      for (int x = 0; x < 8;x++)
+      {
+        HealthBar.setPixelColor(x, color);
+      }*/
+
+      // True Gradient
+      uint32_t color = HealthBar.Color(20, 0, 0);
+
+      if (Health > 1)
+        color = HealthBar.Color(20/(Health-1), (Health-1)*4, 0);
+
+      for (int x = 0; x < Health;x++)
+      {
+        HealthBar.setPixelColor(x, color);
+      }
+
+      HealthBar.show();
+
       // Button 1
       if (Button1Characteristic.written())
       if (Button1Characteristic.value() == 1)
@@ -90,6 +138,7 @@ void loop() {
       if (Button2Characteristic.value() == 1)
       {
         UseItemTest();
+        //UseItem(random(0,InventorySize));
         Button2Characteristic.writeValue(0);
         UpdateDisplay();
       }
@@ -108,16 +157,20 @@ void loop() {
 
 void Initialize()
 {
+  HealthBar.begin();
+
   Screen.begin();
   Screen.setFont(u8g2_font_7x14B_tr);
   Screen.clearBuffer();
   Screen.drawBox(2, 2, 100, 50);
   Screen.sendBuffer();
 
-  /*
   for (int x = 0; x < GetArrayLength(sizeof(Inventory),sizeof(Inventory[0])); x++)
     Inventory[x] = Item::None;
-  */
+
+  for (int x = 0; x < InventorySize; x++)
+    if (Inventory[x] != Item::None)
+    itemsInInventory++;
 
   Health = MaxHealth;
 }
@@ -136,7 +189,7 @@ void UpdateDisplay()
 
   int items = 0;
 
-  for (int x = 0; x < GetArrayLength(sizeof(Inventory),sizeof(Inventory[0])); x++)
+  for (int x = 0; x < InventorySize; x++)
   {
     if (Inventory[x] != Item::None)
     {
@@ -178,7 +231,7 @@ void Increment()
 void AddItemTest()
 {
   if (itemsInInventory+1 <= InventorySize)
-    AddItem((Item)random(1,InventorySize));
+    AddItem((Item)random(1,3));
 
   else
   {
@@ -201,7 +254,7 @@ void AddItem(Item itemToAdd)
       {
         if (Inventory[x] == Item::None)
         {
-          Inventory[x] = (Item)random(1,InventorySize);
+          Inventory[x] = (Item)itemToAdd;
           itemsInInventory++;
           break;
         }
@@ -235,7 +288,7 @@ void UseItem(int itemIndex)
   }
 }
 
-int UseItemTest()
+void UseItemTest()
 {
   for (int x = 0; x < InventorySize; x++)
     if (Inventory[x] != Item::None)
