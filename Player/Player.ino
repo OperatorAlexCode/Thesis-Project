@@ -75,55 +75,11 @@ void loop() {
     // print the central's MAC address:
     Serial.println(central.address());
     UpdateDisplay();
+    UpdateHealthBar();
 
     // while the central is still connected to peripheral:
     while (central.connected())
     {
-      HealthBar.clear();
-
-      // Simple
-      /*for (int x = 0; x < Health;x++)
-      {
-        HealthBar.setPixelColor(x,HealthBar.Color(20,0,0));
-      }*/
-
-      // Step Gradient
-      /*for (int x = 0; x < Health;x++)
-      {
-        uint32_t color = HealthBar.Color(0, 20, 0);
-
-        if (x < 2)
-          color = HealthBar.Color(20, 0, 0);
-        else if (x < 4)
-          color = HealthBar.Color(20, 10, 0);
-        
-         HealthBar.setPixelColor(x, color);
-      }*/
-
-      // Whole Color Gradient
-      /*uint32_t color = HealthBar.Color(20, 0, 0);
-
-      if (Health > 1)
-        color = HealthBar.Color(20/Health, (Health-1)*4, 0);
-
-      for (int x = 0; x < 8;x++)
-      {
-        HealthBar.setPixelColor(x, color);
-      }*/
-
-      // True Gradient
-      uint32_t color = HealthBar.Color(20, 0, 0);
-
-      if (Health > 1)
-        color = HealthBar.Color(20/(Health-1), (Health-1)*4, 0);
-
-      for (int x = 0; x < Health;x++)
-      {
-        HealthBar.setPixelColor(x, color);
-      }
-
-      HealthBar.show();
-
       // Button 1
       if (Button1Characteristic.written())
       if (Button1Characteristic.value() == 1)
@@ -131,6 +87,7 @@ void loop() {
         AddItemTest();
         Button1Characteristic.writeValue(0);
         UpdateDisplay();
+        UpdateHealthBar();
       }
 
       // Button 2
@@ -141,6 +98,7 @@ void loop() {
         //UseItem(random(0,InventorySize));
         Button2Characteristic.writeValue(0);
         UpdateDisplay();
+        UpdateHealthBar();
       }
 
       // if the remote device wrote to the characteristic,
@@ -220,6 +178,54 @@ void UpdateDisplay()
   }
   
   Screen.sendBuffer();
+}
+
+void UpdateHealthBar()
+{
+  HealthBar.clear();
+
+  // Simple
+  /*for (int x = 0; x < Health;x++)
+  {
+    HealthBar.setPixelColor(x,HealthBar.Color(20,0,0));
+  */
+
+  // Step Gradient
+  /*for (int x = 0; x < Health;x++)
+  {
+    uint32_t color = HealthBar.Color(0, 20, 0);
+
+    if (x < 2)
+      color = HealthBar.Color(20, 0, 0);
+    else if (x < 4)
+      color = HealthBar.Color(20, 10, 0);
+        
+      HealthBar.setPixelColor(x, color);
+  }*/
+
+  // Whole Color Gradient
+  /*uint32_t color = HealthBar.Color(20, 0, 0);
+
+  if (Health > 1)
+  color = HealthBar.Color(20/Health, (Health-1)*4, 0);
+
+  for (int x = 0; x < 8;x++)
+  {
+    HealthBar.setPixelColor(x, color);
+  }*/
+
+  // True Gradient
+  uint32_t color = HealthBar.Color(20, 0, 0);
+
+  if (Health > 1)
+      color = HealthBar.Color(20/(Health-1), (Health-1)*4, 0);
+
+  for (int x = 0; x < Health;x++)
+  {
+    HealthBar.setPixelColor(x, color);
+  }
+
+  HealthBar.show();
 }
 
 void Increment()

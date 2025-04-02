@@ -4,6 +4,8 @@
 #include <U8g2lib.h>
 #include <WiFiNINA.h>
 #include <ArduinoBLE.h>
+#include <sam_arduino.h>
+#include <AudioTools.h>
 
 //U8G2_SH1107_SEEED_128X128_F_HW_I2C Screen(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
@@ -28,17 +30,33 @@ bool isPressed = false;
 const int buttonPins[] = {3, 5};
 int buttonStates[2];
 
+//Const char* text = "Hello, nice to meet you";
+
+SAM Voice(Serial,true);
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   while (!Serial);
 
   pinMode(LEDR, OUTPUT); 
+
+  // Button inputs
   pinMode(buttonPins[0], INPUT);
   pinMode(buttonPins[1], INPUT);
 
+  // Button LEDs
+  pinMode(2, OUTPUT);
+  pinMode(4, OUTPUT);
+
+  pinMode(6, OUTPUT);
+
+  Voice.setVoice(SAM::Sam);
+  Voice.setOutputChannels(1);
+  //Voice.Say(text);
+
   BLE.begin();
-  
+
   Serial.println("Bluetooth® Low Energy Central - LED control");
 
   // start scanning for peripherals
@@ -109,18 +127,25 @@ void loop() {
 
       if (buttonStates[0] == LOW && !isPressed)
       {
+        Serial.println("Pressing Button 1");
         //digitalWrite(LEDR, (PinStatus)((++state)%2));
         isPressed = true;
         button1.writeValue((byte)(0x01));
+        digitalWrite(2,HIGH);
       }
       else if (buttonStates[1] == LOW && !isPressed)
       {
+        Serial.println("Pressing Button 2");
         isPressed = true;
         button2.writeValue((byte)(0x01));
+        digitalWrite(4,HIGH);
       }
       else if (buttonStates[0] == HIGH && buttonStates[1] == HIGH)
       {
+        //Serial.println("Resetting");
         isPressed = false;
+        digitalWrite(2,LOW);
+        digitalWrite(4,LOW);
       }
     }
   }
