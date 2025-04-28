@@ -38,9 +38,9 @@ void setup() {
 }
 
 void loop() {
-  display.clear();
-  display.drawString(0,0,"goodbye world");
-  display.display();
+  // display.clear();
+  // display.drawString(0,0,"goodbye world");
+  // display.display();
   while(readID()) {
     dump();
     print();
@@ -86,11 +86,11 @@ void print()  {
    Serial.println(uidString);
   //  u8g2.clearDisplay();
   //  u8g2.setCursor(0,10);
-  display.setFont(ArialMT_Plain_10);
-  display.setTextAlignment(TEXT_ALIGN_LEFT);
-  //display.drawString(0,10,uidString.c_str());
-  display.drawString(0,0,"hello world");
-  display.display();
+  // display.setFont(ArialMT_Plain_10);
+  // display.setTextAlignment(TEXT_ALIGN_LEFT);
+  // //display.drawString(0,10,uidString.c_str());
+  // display.drawString(0,0,"hello world");
+  // display.display();
   delay(2000);
   //u8g2.sendBuffer();
   //u8g2.updateDisplay();
