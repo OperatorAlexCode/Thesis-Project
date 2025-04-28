@@ -1,11 +1,13 @@
 #ifndef ScreenTileConnector_h
 #define ScreenTileConnector_h
 #include "Arduino.h"
+#include <vector>
 
 class ScreenPlugBoard
 {
-  public:
+  std::vector<ValuePair> Screens;
 
+  public:
 
 }
 
