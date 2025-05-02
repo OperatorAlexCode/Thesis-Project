@@ -14,8 +14,9 @@ enum Item
 
 BLEService GamePawn("10e62b35-1ed8-4149-aeca-4df2e8b24132");
 
-BLEIntCharacteristic Button1Characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132", BLERead | BLEWrite);
-BLEIntCharacteristic Button2Characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132", BLERead | BLEWrite);
+BLEIntCharacteristic Button1Characteristic(GamePawn.uuid(), BLERead | BLEWrite);
+BLEIntCharacteristic Button2Characteristic(GamePawn.uuid(), BLERead | BLEWrite);
+BLEIntCharacteristic KeypadCharacteristic(GamePawn.uuid(), BLERead | BLEWrite);
 
 U8G2_SSD1306_128X64_NONAME_F_SW_I2C Screen(U8G2_R0,/*clock=*/22,/*data=*/21,U8X8_PIN_NONE);
 
@@ -51,10 +52,12 @@ void setup() {
 
   GamePawn.addCharacteristic(Button1Characteristic);
   GamePawn.addCharacteristic(Button2Characteristic);
+  GamePawn.addCharacteristic(KeypadCharacteristic);
 
   BLE.addService(GamePawn);
   Button1Characteristic.writeValue(0);
   Button2Characteristic.writeValue(0);
+  KeypadCharacteristic.writeValue(0);
 
   // start advertising
   BLE.advertise();
@@ -101,6 +104,20 @@ void loop() {
         UpdateHealthBar();
       }
 
+      // KeypadCharacteristic
+      if (KeypadCharacteristic.written())
+      if (KeypadCharacteristic.value() > 0)
+      {
+        //UseItemTest();
+        Serial.print("Using Item: ");
+        Serial.print(KeypadCharacteristic.value()-1);
+        Serial.println();
+        UseItem(KeypadCharacteristic.value()-1);
+        KeypadCharacteristic.writeValue(0);
+        UpdateDisplay();
+        UpdateHealthBar();
+      }
+
       // if the remote device wrote to the characteristic,
     }
 
@@ -111,6 +128,8 @@ void loop() {
     Screen.drawBox(2, 2, 100, 64);
     Screen.sendBuffer();
   }
+
+  //Serial.println("Failed to connect");
 }
 
 void Initialize()
@@ -152,7 +171,7 @@ void UpdateDisplay()
     if (Inventory[x] != Item::None)
     {
       int difference = 42-32;
-      int xPos = items++ * 42 + difference/2;
+      int xPos = x * 42 + difference/2;
       int yPos = 16+difference/2;
 
       switch(Inventory[x])

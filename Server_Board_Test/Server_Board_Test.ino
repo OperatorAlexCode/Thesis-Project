@@ -5,6 +5,7 @@
 //#include <AudioTools.h>
 #include <vector>
 #define SPEAKER 6
+#include "TCA9548A.h"
 
 //U8G2_SH1107_SEEED_128X128_F_HW_I2C Screen(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
@@ -53,16 +54,24 @@ int buttonStates[2];
 //I2SStream output;
 
 const char* text = "Hello, nice to meet you";
+String KeypadOutput = "";
 
-SAM Voice(Serial,true);
+//SAM Voice(Serial,true);
 //SAM Voice(output);
 int BassTab[]={1911,1702,1516,1431,1275,1136,1012};
-
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   while (!Serial);
+
+  Serial1.begin(9600);
+  while (!Serial1);
+
+  if (!BLE.begin()) {
+    Serial.println("starting Bluetooth® Low Energy module failed!");
+    while (1);
+  }
 
   //pinMode(LEDR, OUTPUT);
 
@@ -84,17 +93,18 @@ void setup() {
   cfg.pin_data = SPEAKER;
   output.begin(cfg);*/
 
-  Voice.setVoice(SAM::Sam);
+  /*Voice.setVoice(SAM::Sam);
   Voice.setOutputChannels(1);
   Voice.say(text);
-  delay(500);
+  delay(500);*/
 
-  BLE.begin();
+  //BLE.begin();
 
-  Serial.println("Bluetooth® Low Energy Central - LED control");
+  Serial.println("Bluetooth® Low Energy Central - Server Board");
 
   // start scanning for peripherals
-  BLE.scanForUuid("10e62b35-1ed8-4149-aeca-4df2e8b24132");
+  //BLE.scanForUuid("10e62b35-1ed8-4149-aeca-4df2e8b24132");
+  BLE.scan();
 
   //Screen.begin();
 
@@ -110,8 +120,9 @@ void loop() {
 
   BLEDevice pawn = BLE.available();
 
-  if (pawn)
-  {
+  //Serial.println(BLE.available());
+
+  if (pawn) {
     Serial.print("Found ");
     Serial.print(pawn.address());
     Serial.print(" '");
@@ -150,14 +161,16 @@ void loop() {
       return;
     }
 
-    BLECharacteristic button1 = pawn.characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132",0);
-    BLECharacteristic button2 = pawn.characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132",1);
+    BLECharacteristic button1 = pawn.characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132", 0);
+    BLECharacteristic button2 = pawn.characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132", 1);
+    BLECharacteristic keypad = pawn.characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132", 2);
 
     while (pawn.connected())
     {
       // Button toggle
       buttonStates[0] = digitalRead(buttonPins[0]);
       buttonStates[1] = digitalRead(buttonPins[1]);
+      int keypadOutput = GetKeypadOutput();
 
       if (buttonStates[0] == LOW && !isPressed)
       {
@@ -181,11 +194,117 @@ void loop() {
         digitalWrite(2,LOW);
         digitalWrite(4,LOW);
       }
+
+      if (keypadOutput != 0x00) 
+      {
+        if (keypadOutput == 0xEC)
+        {
+          Serial.print("Sending output:");
+          Serial.print(KeypadOutput.toInt());
+          Serial.println();
+          keypad.writeValue((byte)(KeypadOutput.toInt()));
+          KeypadOutput = "";
+        } else if (keypadOutput != 0xEA)
+        {
+          switch (keypadOutput) {
+            case 0xE1:
+              KeypadOutput += "1";
+              break;
+            case 0xE2:
+              KeypadOutput += "2";
+              break;
+            case 0xE3:
+              KeypadOutput += "3";
+              break;
+            case 0xE4:
+              KeypadOutput += "4";
+              break;
+            case 0xE5:
+              KeypadOutput += "5";
+              break;
+            case 0xE6:
+              KeypadOutput += "6";
+              break;
+            case 0xE7:
+              KeypadOutput += "7";
+              break;
+            case 0xE8:
+              KeypadOutput += "8";
+              break;
+            case 0xE9:
+              KeypadOutput += "9";
+              break;
+            case 0xEB:
+              KeypadOutput += "0";
+              break;
+          }
+        } else {
+          KeypadOutput = "";
+        }
+        
+      }
     }
+
+    BLE.scan();
   }
 
-  BLE.scanForUuid("10e62b35-1ed8-4149-aeca-4df2e8b24132");
+  //BLE.scanForUuid("10e62b35-1ed8-4149-aeca-4df2e8b24132");
+  
   //digitalWrite(LEDR, LOW);
+}
+
+int GetKeypadOutput() {
+  int output = 0x00;
+
+  if (Serial1.available())
+  {
+    output = Serial1.read();
+  }
+  
+  if (output != 0x00) {
+    Serial.print("Reading keyboard output:");
+    switch (output) {
+            case 0xE1:
+              Serial.print("1");
+              break;
+            case 0xE2:
+              Serial.print("2");
+              break;
+            case 0xE3:
+              Serial.print("3");
+              break;
+            case 0xE4:
+              Serial.print("4");
+              break;
+            case 0xE5:
+              Serial.print("5");
+              break;
+            case 0xE6:
+              Serial.print("6");
+              break;
+            case 0xE7:
+              Serial.print("7");
+              break;
+            case 0xE8:
+              Serial.print("8");
+              break;
+            case 0xE9:
+              Serial.print("9");
+              break;
+            case 0xEA:
+              Serial.print("*");
+              break;
+            case 0xEB:
+              Serial.print("0");
+              break;
+            case 0xEC:
+              Serial.print("#");
+              break;
+          }
+    Serial.println();
+  } 
+
+  return output;
 }
 
 /*int* RandomizeRooms()
