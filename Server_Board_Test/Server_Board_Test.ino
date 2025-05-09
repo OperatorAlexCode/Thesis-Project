@@ -4,10 +4,11 @@
 #include <sam_arduino.h>
 //#include <AudioTools.h>
 #include <vector>
-#define SPEAKER 6
 #include "TCA9548A.h"
+#include <Wire.h>
+#define SPEAKER 6
 
-//U8G2_SH1107_SEEED_128X128_F_HW_I2C Screen(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
+U8G2_SH1107_SEEED_128X128_F_HW_I2C Screen(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
 const uint8_t testIcon[] = {
   0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 
@@ -60,6 +61,8 @@ String KeypadOutput = "";
 //SAM Voice(output);
 int BassTab[]={1911,1702,1516,1431,1275,1136,1012};
 
+TCA9548A TCA;
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
@@ -106,7 +109,57 @@ void setup() {
   //BLE.scanForUuid("10e62b35-1ed8-4149-aeca-4df2e8b24132");
   BLE.scan();
 
+  TCA.begin(Wire);
+
   //Screen.begin();
+
+  /*TCA.openChannel(TCA_CHANNEL_0);
+
+  Serial.println("Drawing screen 0");
+
+  Screen.clearBuffer();
+  Screen.drawStr(0, 10, "Screen 0");
+  Screen.sendBuffer();
+
+  delay(1000);
+
+  TCA.closeChannel(TCA_CHANNE_0);
+
+  TCA.openChannel(TCA_CHANNEL_1);
+
+  Serial.println("Drawing screen 1");
+
+  Screen.clearBuffer();
+  Screen.drawStr(0, 10, "Screen 1");
+  Screen.sendBuffer();
+
+  delay(1000);
+
+  TCA.closeChannel(TCA_CHANNEL_1);
+
+  TCA.openChannel(TCA_CHANNEL_2);
+
+  Serial.println("Drawing screen 2");
+
+  Screen.clearBuffer();
+  Screen.drawStr(0, 10, "Screen 2");
+  Screen.sendBuffer();
+
+  delay(1000);
+
+  TCA.closeChannel(TCA_CHANNEL_2);*/
+
+  /*TCA.openAll();
+
+  //TCA.openChannel(TCA_CHANNEL_0);
+  //TCA.openChannel(TCA_CHANNEL_1);
+  //TCA.openChannel(TCA_CHANNEL_2);
+
+  Screen.clearBuffer();
+  Screen.drawXBMP(0, 0, 32, 32, testIcon);
+  Screen.sendBuffer();*/
+
+  //TCA.closeAll();
 
   //BLE.begin();
 }
