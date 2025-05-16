@@ -4,8 +4,9 @@
 #include <sam_arduino.h>
 //#include <AudioTools.h>
 #include <vector>
-#include "TCA9548A.h"
-#include <Wire.h>
+//#include "TCA9548A.h"
+//#include <Wire.h>
+//#include <SoftwareWire.h>
 #define SPEAKER 6
 
 U8G2_SH1107_SEEED_128X128_F_HW_I2C Screen(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
@@ -61,8 +62,6 @@ String KeypadOutput = "";
 //SAM Voice(output);
 int BassTab[]={1911,1702,1516,1431,1275,1136,1012};
 
-TCA9548A TCA;
-
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
@@ -109,7 +108,7 @@ void setup() {
   //BLE.scanForUuid("10e62b35-1ed8-4149-aeca-4df2e8b24132");
   BLE.scan();
 
-  TCA.begin(Wire);
+  //TCA.begin(Wire);
 
   //Screen.begin();
 
