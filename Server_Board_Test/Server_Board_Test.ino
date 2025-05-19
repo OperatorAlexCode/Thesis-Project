@@ -22,7 +22,8 @@ const uint8_t testIcon[] = {
   0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 
   0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 
   0x0F, 0x0F, 0x0F, 0x0F, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 
-  0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, };
+  0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0,
+};
 
 enum Room
 {
@@ -107,58 +108,6 @@ void setup() {
   // start scanning for peripherals
   //BLE.scanForUuid("10e62b35-1ed8-4149-aeca-4df2e8b24132");
   BLE.scan();
-
-  //TCA.begin(Wire);
-
-  //Screen.begin();
-
-  /*TCA.openChannel(TCA_CHANNEL_0);
-
-  Serial.println("Drawing screen 0");
-
-  Screen.clearBuffer();
-  Screen.drawStr(0, 10, "Screen 0");
-  Screen.sendBuffer();
-
-  delay(1000);
-
-  TCA.closeChannel(TCA_CHANNE_0);
-
-  TCA.openChannel(TCA_CHANNEL_1);
-
-  Serial.println("Drawing screen 1");
-
-  Screen.clearBuffer();
-  Screen.drawStr(0, 10, "Screen 1");
-  Screen.sendBuffer();
-
-  delay(1000);
-
-  TCA.closeChannel(TCA_CHANNEL_1);
-
-  TCA.openChannel(TCA_CHANNEL_2);
-
-  Serial.println("Drawing screen 2");
-
-  Screen.clearBuffer();
-  Screen.drawStr(0, 10, "Screen 2");
-  Screen.sendBuffer();
-
-  delay(1000);
-
-  TCA.closeChannel(TCA_CHANNEL_2);*/
-
-  /*TCA.openAll();
-
-  //TCA.openChannel(TCA_CHANNEL_0);
-  //TCA.openChannel(TCA_CHANNEL_1);
-  //TCA.openChannel(TCA_CHANNEL_2);
-
-  Screen.clearBuffer();
-  Screen.drawXBMP(0, 0, 32, 32, testIcon);
-  Screen.sendBuffer();*/
-
-  //TCA.closeAll();
 
   //BLE.begin();
 }
