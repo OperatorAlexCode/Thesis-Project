@@ -7,20 +7,19 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <U8g2lib.h>
-#include <SSD1306Wire.h>
-
+//#include <SSD1306Wire.h>
 
 // Learn more about using SPI/I2C or check the pin assigment for your board: https://github.com/OSSLibraries/Arduino_MFRC522v2#pin-layout
 MFRC522DriverPinSimple ss_pin(5);
-SSD1306Wire display(0x3c, 21, 22);
+//SSD1306Wire display(0x3c, 21, 22);
 MFRC522DriverSPI driver{ss_pin}; // Create SPI driver
 //MFRC522DriverI2C driver{};     // Create I2C driver
 MFRC522 mfrc522{driver};         // Create MFRC522 instance
 
 void setup() {
-  display.init();
-  display.flipScreenVertically();
-  display.setFont(ArialMT_Plain_10);
+  //display.init();
+  //display.flipScreenVertically();
+  //display.setFont(ArialMT_Plain_10);
   Serial.begin(115200);  // Initialize serial communication
   while (!Serial);       // Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4).
   mfrc522.PCD_Init();    // Init MFRC522 board.
@@ -45,7 +44,7 @@ void dump()   {
 }
 
 void print()  {
-  display.clear();
+  //display.clear();
   String uidString = "";
     for (byte i = 0; i < mfrc522.uid.size; i++) {
       if (mfrc522.uid.uidByte[i] < 0x10) {

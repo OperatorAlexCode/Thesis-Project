@@ -10,7 +10,7 @@
 #include <ArduinoBLE.h>
 #include "Icons.h"
 #include <Adafruit_NeoPixel.h>
-#include <SSD1306Wire.h>
+//#include <SSD1306Wire.h>
 
 enum Item
 {
@@ -24,7 +24,7 @@ BLEService GamePawn("10e62b35-1ed8-4149-aeca-4df2e8b24132");
 BLEIntCharacteristic Button1Characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132", BLERead | BLEWrite);
 BLEIntCharacteristic Button2Characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132", BLERead | BLEWrite);
 MFRC522DriverPinSimple ss_pin(5);
-SSD1306Wire display(0x3c, 21, 22);
+//SSD1306Wire display(0x3c, 21, 22);
 MFRC522DriverSPI driver{ss_pin}; // Create SPI driver
 MFRC522 mfrc522{driver};  
 U8G2_SSD1306_128X64_NONAME_F_SW_I2C Screen(U8G2_R0,/*clock=*/22,/*data=*/21,U8X8_PIN_NONE);
@@ -45,9 +45,9 @@ Item Inventory[3] /*= {Item::Medkit, Item::None, Item::Beer}*/;
 void setup() {
   // put your setup code here, to run once:
   Initialize();
-  display.init();
-  display.flipScreenVertically();
-  display.setFont(ArialMT_Plain_10);
+  //display.init();
+  //display.flipScreenVertically();
+  //display.setFont(ArialMT_Plain_10);
   // Serial.begin(9600); går det bra att ändra?
   Serial.begin(115200);
   while (!Serial);
@@ -81,11 +81,8 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  while(readID()) {
-    dump();
-    print();
-  }
-    // listen for Bluetooth® Low Energy peripherals to connect:
+  
+  // listen for Bluetooth® Low Energy peripherals to connect:
   BLEDevice central = BLE.central();
 
   // if a central is connected to peripheral:
@@ -94,12 +91,18 @@ void loop() {
     Serial.print("Connected to central: ");
     // print the central's MAC address:
     Serial.println(central.address());
-    UpdateDisplay();
-    UpdateHealthBar();
+    //UpdateDisplay();
+    //UpdateHealthBar();
 
     // while the central is still connected to peripheral:
     while (central.connected())
     {
+      while(readID()) 
+      {
+        dump();
+        print();
+      }
+
       // Button 1
       if (Button1Characteristic.written())
       if (Button1Characteristic.value() == 1)
@@ -138,10 +141,10 @@ void Initialize()
   HealthBar.begin();
 
   Screen.begin();
-  Screen.setFont(u8g2_font_7x14B_tr);
+  /*Screen.setFont(u8g2_font_7x14B_tr);
   Screen.clearBuffer();
   Screen.drawBox(2, 2, 100, 50);
-  Screen.sendBuffer();
+  Screen.sendBuffer();*/
 
   for (int x = 0; x < GetArrayLength(sizeof(Inventory),sizeof(Inventory[0])); x++)
     Inventory[x] = Item::None;
@@ -158,7 +161,7 @@ void dump()   {
 }
 
 void print()  {
-  display.clear();
+  //display.clear();
   String uidString = "";
     for (byte i = 0; i < mfrc522.uid.size; i++) {
       if (mfrc522.uid.uidByte[i] < 0x10) {
