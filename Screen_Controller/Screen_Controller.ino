@@ -1464,7 +1464,7 @@ uint8_t storage[] = {
   Storage
 };*/
 
-U8G2_SH1107_SEEED_128X128_F_HW_I2C Screen(U8G2_R1, /* reset=*/ U8X8_PIN_NONE);
+U8G2_SH1107_SEEED_128X128_F_HW_I2C Screen(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
 BLEService ScreenController("abcde1");
 
@@ -1495,8 +1495,8 @@ enum Room
 //SoftwareWire Wire1(8,7);
 //SoftwareWire Wire2(6,5);
 
-TCA9548A Multi;
-//TCA9548A Multi2;
+TCA9548A Multi(0x70);
+TCA9548A Multi2(0x71);
 
 //TCA9548A<SoftwareWire> Multi1;
 //TCA9548A<SoftwareWire> Multi2;
@@ -1513,7 +1513,11 @@ void setup() {
   Serial.begin(9600);
   while (!Serial);
 
+  Serial.println("Serial open");
+
   while(!BLE.begin());
+
+  Serial.println("BLE begun");
 
   BLE.setLocalName("Screen Controller");
   BLE.setAdvertisedService(ScreenController);
@@ -1529,10 +1533,17 @@ void setup() {
   //Wire2.begin();
 
   Multi.begin(WIRE1);
-  //Multi2.begin(WIRE2);
+  Multi2.begin(WIRE1);
 
   Screen.begin();
   Screen.setFont(u8g2_font_7x14B_tr);
+
+  Multi.openAll();
+  Multi2.openAll();
+  Screen.begin();
+  Screen.setFont(u8g2_font_7x14B_tr);
+  Multi.closeAll();
+  Multi2.closeAll();
 
   /*TCA.openAll();
   Screen.clearBuffer();
@@ -1545,10 +1556,10 @@ void setup() {
     SetTile(x,x);
   }
 
-  /*for (int x = 8; x < 16; x++)
+  for (int x = 8; x < 16; x++)
   {
     SetTile(x,x);
-  }*/
+  }
 }
 
 void loop() {
@@ -1625,8 +1636,9 @@ void loop() {
     }
   }*/
 
-  for (int x = 0; x < 8; x++)
+  /*for (int x = 0; x < 8; x++)
   {
+    Serial.println((String("Setting Screen") + String(x)).c_str());
     SetTile(x,x);
   }
 
@@ -1634,10 +1646,11 @@ void loop() {
 
   for (int x = 8; x < 16; x++)
   {
+    Serial.println((String("Setting Screen") + String(x)).c_str());
     SetTile(x,x);
   }
 
-  delay(2000);
+  delay(2000);*/
 }
 
 void Clear() {
@@ -1657,6 +1670,11 @@ void Clear() {
 }
 
 void SetTile(int tileToSet, int room) {
+
+  if (tileToSet >= 8)
+  Multi2.openChannel(tileToSet%8);
+
+  else
   Multi.openChannel(tileToSet%8);
 
   Screen.clearBuffer();
@@ -1718,6 +1736,10 @@ void SetTile(int tileToSet, int room) {
 
   Screen.sendBuffer();
 
+  if (tileToSet >= 8)
+  Multi2.closeChannel(tileToSet%8);
+
+  else
   Multi.closeChannel(tileToSet%8);
 
   delay(10);
