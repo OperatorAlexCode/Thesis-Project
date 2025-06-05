@@ -91,8 +91,8 @@ void loop() {
     Serial.print("Connected to central: ");
     // print the central's MAC address:
     Serial.println(central.address());
-    //UpdateDisplay();
-    //UpdateHealthBar();
+    UpdateDisplay();
+    UpdateHealthBar();
 
     // while the central is still connected to peripheral:
     while (central.connected())
@@ -141,10 +141,10 @@ void Initialize()
   HealthBar.begin();
 
   Screen.begin();
-  /*Screen.setFont(u8g2_font_7x14B_tr);
+  Screen.setFont(u8g2_font_7x14B_tr);
   Screen.clearBuffer();
   Screen.drawBox(2, 2, 100, 50);
-  Screen.sendBuffer();*/
+  Screen.sendBuffer();
 
   for (int x = 0; x < GetArrayLength(sizeof(Inventory),sizeof(Inventory[0])); x++)
     Inventory[x] = Item::None;
@@ -229,6 +229,7 @@ void UpdateDisplay()
   }
   
   Screen.sendBuffer();
+  mfrc522.PCD_Init();
 }
 
 void UpdateHealthBar()

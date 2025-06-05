@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <ArduinoBLE.h>
-#include <sam_arduino.h>
+//#include <sam_arduino.h>
 //#include <AudioTools.h>
 #include <vector>
 #define SPEAKER 6
@@ -54,7 +54,7 @@ int buttonStates[2];
 
 const char* text = "Hello, nice to meet you";
 
-SAM Voice(Serial,true);
+//SAM Voice(Serial,true);
 //SAM Voice(output);
 int BassTab[]={1911,1702,1516,1431,1275,1136,1012};
 
@@ -84,10 +84,10 @@ void setup() {
   cfg.pin_data = SPEAKER;
   output.begin(cfg);*/
 
-  Voice.setVoice(SAM::Sam);
-  Voice.setOutputChannels(1);
-  Voice.say(text);
-  delay(500);
+  //Voice.setVoice(SAM::Sam);
+  //Voice.setOutputChannels(1);
+  //Voice.say(text);
+  //delay(500);
 
   BLE.begin();
 
@@ -182,9 +182,9 @@ void loop() {
         digitalWrite(4,LOW);
       }
     }
+    BLE.scanForUuid("10e62b35-1ed8-4149-aeca-4df2e8b24132");
   }
-
-  BLE.scanForUuid("10e62b35-1ed8-4149-aeca-4df2e8b24132");
+  
   //digitalWrite(LEDR, LOW);
 }
 
