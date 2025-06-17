@@ -1,11 +1,11 @@
 #include <Arduino.h>
 #include <sam_arduino.h>
-//#include <AudioTools.h>
+#include <AudioTools.h>
 //#include <WiFiNINA.h>
 #define SPEAKER 6
 
 //I2SStream output;
-//PWM output;
+PWMAudioOutput output;
 const char* text = "Hello, nice to meet you";
 
 SAM Voice(Serial1,false);
@@ -16,17 +16,19 @@ int BassTab[]={1911,1702,1516,1431,1275,1136,1012};
 void setup() {
   // put your setup code here, to run once:
   Serial1.begin(9600);
-  while (!Serial);
+  while (!Serial1);
 
-  pinMode(SPEAKER, OUTPUT);
-  digitalWrite(SPEAKER, LOW);
+  //pinMode(SPEAKER, OUTPUT);
+  //digitalWrite(SPEAKER, LOW);
 
-  /*auto cfg = output.defaultConfig();
-  cfg.sample_rate = 22050;
+  AudioToolsLogger.begin(Serial1, AudioToolsLogLevel::Info);
+
+  auto cfg = output.defaultConfig();
+  /*cfg.sample_rate = 22050;
   cfg.channels = 1;
   cfg.bits_per_sample = 16;
-  cfg.pin_data = SPEAKER;
-  output.begin(cfg);*/
+  cfg.pin_data = SPEAKER;*/
+  output.begin(cfg);
 
   Voice.setVoice(SAM::Sam);
   Voice.setOutputChannels(1);
