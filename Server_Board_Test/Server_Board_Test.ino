@@ -81,9 +81,10 @@ void assignArray() {
   randomSeed(analogRead(0));
 
   // Fill array with numbers 1 to 16
-  for (int i = 0; i < SIZE * SIZE; ++i) {
+  for (int i = 0; i < SIZE * SIZE - 1; ++i) {
     numbers[i] = i + 1;
   }
+  numbers[SIZE * SIZE - 1] = 0;
 
   // Shuffle the numbers
   shuffleArray(numbers, SIZE * SIZE);
