@@ -46,6 +46,20 @@ enum Room
   Storage = 16
 };
 
+const int SIZE = 4;
+int matrix[SIZE][SIZE];
+int numbers[SIZE * SIZE];
+
+void shuffleArray(int *array, int n) {
+  for (int i = n - 1; i > 0; --i) {
+    int j = random(i + 1);
+    int temp = array[i];
+    array[i] = array[j];
+    array[j] = temp;
+  }
+}
+
+
 const int buttonPin = 3;
 int buttonState = 0;
 int state = 0;
@@ -62,6 +76,37 @@ String KeypadOutput = "";
 //SAM Voice(Serial,true);
 //SAM Voice(output);
 int BassTab[]={1911,1702,1516,1431,1275,1136,1012};
+
+void assignArray() {
+  randomSeed(analogRead(0));
+
+  // Fill array with numbers 1 to 16
+  for (int i = 0; i < SIZE * SIZE - 1; ++i) {
+    numbers[i] = i + 1;
+  }
+  numbers[SIZE * SIZE - 1] = 0;
+
+  // Shuffle the numbers
+  shuffleArray(numbers, SIZE * SIZE);
+
+  // Fill the 4x4 matrix
+  int index = 0;
+  for (int i = 0; i < SIZE; ++i) {
+    for (int j = 0; j < SIZE; ++j) {
+      matrix[i][j] = numbers[index++];
+    }
+  }
+
+  // Print the matrix
+  for (int i = 0; i < SIZE; ++i) {
+    for (int j = 0; j < SIZE; ++j) {
+      Serial.print(matrix[i][j]);
+      Serial.print("\t");
+    }
+    Serial.println();
+  }
+}
+
 
 void setup() {
   // put your setup code here, to run once:
@@ -102,6 +147,7 @@ void setup() {
   delay(500);*/
 
   //BLE.begin();
+  assignArray();
 
   Serial.println("Bluetooth® Low Energy Central - Server Board");
 
