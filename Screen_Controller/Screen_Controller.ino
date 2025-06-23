@@ -1464,12 +1464,11 @@ uint8_t storage[] = {
   Storage
 };*/
 
-U8G2_SH1107_SEEED_128X128_F_HW_I2C Screen(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
+U8G2_SH1107_SEEED_128X128_F_HW_I2C Screen(U8G2_R3, /* reset=*/ U8X8_PIN_NONE);
 
-BLEService ScreenController("abcde1");
+BLEService ScreenController("646c3367-5f9c-4b50-bc95-4701b2d8ba50");
 
-//BLEStringCharacteristic Input(ScreenController.uuid(),BLERead | BLEWrite, 2);
-BLEIntCharacteristic Input(ScreenController.uuid(),BLERead | BLEWrite);
+BLEByteCharacteristic Input(ScreenController.uuid(), BLERead | BLEWrite);
 
 enum Room
 {
@@ -1490,7 +1489,6 @@ enum Room
   Aquaponics = 14,
   Storage = 15
 };
-
 
 //SoftwareWire Wire1(8,7);
 //SoftwareWire Wire2(6,5);
@@ -1519,47 +1517,41 @@ void setup() {
 
   Serial.println("BLE begun");
 
-  BLE.setLocalName("Screen Controller");
-  BLE.setAdvertisedService(ScreenController);
-
-  ScreenController.addCharacteristic(Input);
-
-  BLE.addService(ScreenController);
-  //Input.writeValue(Word("  "));
-
-  BLE.advertise();
-
   WIRE1.begin();
   //Wire2.begin();
 
   Multi.begin(WIRE1);
   Multi2.begin(WIRE1);
 
-  Screen.begin();
-  Screen.setFont(u8g2_font_7x14B_tr);
-
   Multi.openAll();
   Multi2.openAll();
   Screen.begin();
   Screen.setFont(u8g2_font_7x14B_tr);
+  Screen.clearBuffer();
   Multi.closeAll();
   Multi2.closeAll();
 
-  /*TCA.openAll();
-  Screen.clearBuffer();
-  Screen.sendBuffer();
-  TCA.closeAll();*/
+  BLE.setLocalName("Screen Controller");
+  BLE.setAdvertisedService(ScreenController);
 
-  Clear();
-  for (int x = 0; x < 8; x++)
+  Input.setEventHandler(BLEWritten,WriteToScreen);
+
+  ScreenController.addCharacteristic(Input);
+
+  BLE.addService(ScreenController);
+  /*Serial.print("Before: ");
+  Serial.println(Input.value());
+  Input.writeValue(-1);
+  Serial.print("After: ");
+  Serial.println(Input.value());*/
+
+  BLE.advertise();
+
+  //Clear();
+  /*for (int x = 0; x < 16; x++)
   {
     SetTile(x,x);
-  }
-
-  for (int x = 8; x < 16; x++)
-  {
-    SetTile(x,x);
-  }
+  }*/
 }
 
 void loop() {
@@ -1595,46 +1587,36 @@ void loop() {
 
   BLEDevice central = BLE.central();
   
-  /*if (central) {
+  if (central) {
+    Serial.println("Connected to central");
     while (central.connected()) {
-      if (Input.written())
+      /*if (Input.valueUpdated())
       {
-        if(Input.value() != "  ") {
-        int value = Input.value().toInt();
-        int index = Rooms;
-        //int index = DisplayedRooms.size();
+        Serial.print("Recieved value:");
+        Serial.println(Input.value(),BIN);
 
-        if (value >= 16)
-        {
-          Rooms = 0;
-        } else
-        {
+        //if (Input.value() >= 0)
+        //{
+        Serial.println("Writing to screen");
+        byte input = Input.value();
+
+        int value = 0x00001111 & input;
+        int index = 0x11110000 & input;
+
+        if (index < 16 && value < 16)
           SetTile(index,value);
-          Rooms++;
-          //SetTile(DisplayedRooms.size(),value);
-          //DisplayedRooms.push_back((Room)value);
-        }
 
-        if (Input.value() >= 0)
-        {
-          int input = Input.value();
-
-          int value = 0x00001111 & input;
-          int index = 0x11110000 & input;
-
-          if (index < 16 && value < 16)
-            SetTile(index,value);
-
-          Input.writeValue(-1);
-        }
-      }
+          //Input.writeValue(-1);
+        //}
+      }*/
       
-      for (int x = 0; x < 8; x++)
+      /*for (int x = 0; x < 8; x++)
       {
         SetTile(x,x);
-      }
+      }*/
+      //delay(1000);
     }
-  }*/
+  }
 
   /*for (int x = 0; x < 8; x++)
   {
@@ -1653,8 +1635,26 @@ void loop() {
   delay(2000);*/
 }
 
+void WriteToScreen(BLEDevice central, BLECharacteristic characteristic) {
+  Serial.print("Recieved value:");
+  Serial.println(Input.value(),BIN);
+
+  byte input = Input.value();
+
+  byte value = 0b00001111 & input;
+  byte index = (0b11110000 & input) >> 4;
+
+  Serial.print(value,BIN);
+  Serial.print(" | ");
+  Serial.println(index,BIN);
+
+  if (index < 16 && value < 16)
+    SetTile(index,value);
+}
+
 void Clear() {
   Multi.openAll();
+  Multi2.openAll();
 
   //Multi1.openChannel(TCA_CHANNEL_0);
   //Multi1.openChannel(TCA_CHANNEL_1);
@@ -1667,19 +1667,20 @@ void Clear() {
   Screen.clearDisplay();
 
   Multi.closeAll();
+  Multi2.closeAll();
 }
 
 void SetTile(int tileToSet, int room) {
 
   if (tileToSet >= 8)
-  Multi2.openChannel(tileToSet%8);
+    Multi2.openChannel(tileToSet%8);
 
   else
-  Multi.openChannel(tileToSet%8);
+    Multi.openChannel(tileToSet%8);
 
   Screen.clearBuffer();
 
-  switch(tileToSet){
+  switch(room){
     case Room::Bunks:
     Screen.drawXBMP(0,0,128,128,bunks);
     break;

@@ -10,7 +10,7 @@
 #include <MFRC522DriverI2C.h>
 #include <MFRC522DriverPinSimple.h>
 #include <MFRC522Debug.h>
-#include <SSD1306Wire.h>
+//#include <SSD1306Wire.h>
 
 enum Item
 {
@@ -25,7 +25,7 @@ BLEIntCharacteristic Button1Characteristic(GamePawn.uuid(), BLERead | BLEWrite);
 BLEIntCharacteristic Button2Characteristic(GamePawn.uuid(), BLERead | BLEWrite);
 BLEIntCharacteristic KeypadCharacteristic(GamePawn.uuid(), BLERead | BLEWrite);
 MFRC522DriverPinSimple ss_pin(5);
-SSD1306Wire display(0x3c, 21, 22);
+//SSD1306Wire display(0x3c, 21, 22);
 MFRC522DriverSPI driver{ss_pin}; // Create SPI driver
 MFRC522 mfrc522{driver};  
 
@@ -47,15 +47,15 @@ Item Inventory[3] /*= {Item::Medkit, Item::None, Item::Beer}*/;
 void setup() {
   // put your setup code here, to run once:
   Initialize();
-  display.init();
-  display.flipScreenVertically();
-  display.setFont(ArialMT_Plain_10);
+  //display.init();
+  //display.flipScreenVertically();
+  //display.setFont(ArialMT_Plain_10);
 
   Serial.begin(9600);
   while (!Serial);
   mfrc522.PCD_Init();    // Init MFRC522 board.
   SPI.begin(); // Init SPI bus
-  MFRC522Debug::PCD_DumpVersionToSerial(mfrc522, Serial);	// Show details of PCD - MFRC522 Card Reader details.
+  //MFRC522Debug::PCD_DumpVersionToSerial(mfrc522, Serial);	// Show details of PCD - MFRC522 Card Reader details.
   Serial.println(F("Scan PICC to see UID, SAK, type, and data blocks..."));
   // begin initialization
   // begin initialization
@@ -64,8 +64,11 @@ void setup() {
     while (1);
   }
 
+  String name = String("Player");
+  name += String(PlayerId);
+
   // set advertised local name and service UUID:
-  BLE.setLocalName("Player 1");
+  BLE.setLocalName(name.c_str());
   BLE.setAdvertisedService(GamePawn);
 
   GamePawn.addCharacteristic(Button1Characteristic);
@@ -101,6 +104,12 @@ void loop() {
     // while the central is still connected to peripheral:
     while (central.connected())
     {
+      while(readID()) { 
+        dump();
+        //print();
+        Serial.println("Id: " + GetId());
+      }
+
       // Button 1
       if (Button1Characteristic.written())
       if (Button1Characteristic.value() == 1)
@@ -112,7 +121,7 @@ void loop() {
       }
 
       // Button 2
-      if (Button2Characteristic.written())
+      /*if (Button2Characteristic.written())
       if (Button2Characteristic.value() == 1)
       {
         UseItemTest();
@@ -120,9 +129,9 @@ void loop() {
         Button2Characteristic.writeValue(0);
         UpdateDisplay();
         UpdateHealthBar();
-      }
+      }*/
 
-      // KeypadCharacteristic
+      // Keypad
       if (KeypadCharacteristic.written())
       if (KeypadCharacteristic.value() > 0)
       {
@@ -175,7 +184,7 @@ void dump()   {
 }
 
 void print()  {
-  display.clear();
+  //display.clear();
   String uidString = "";
     for (byte i = 0; i < mfrc522.uid.size; i++) {
       if (mfrc522.uid.uidByte[i] < 0x10) {
@@ -184,7 +193,19 @@ void print()  {
     uidString += String(mfrc522.uid.uidByte[i], HEX);
   }
   Serial.println(uidString);
-  delay(2000);
+  //delay(2000);
+}
+
+String GetId() {
+  String uidString = "";
+    for (byte i = 0; i < mfrc522.uid.size; i++) {
+      if (mfrc522.uid.uidByte[i] < 0x10) {
+       uidString += "0"; 
+      }
+    uidString += String(mfrc522.uid.uidByte[i], HEX);
+  }
+
+  return uidString;
 }
 
 boolean readID()  {
@@ -197,7 +218,6 @@ boolean readID()  {
   mfrc522.PICC_HaltA(); // Stop reading
   return true;
 }
-
 
 void UpdateDisplay()
 {

@@ -9,24 +9,21 @@
 //#include <SoftwareWire.h>
 #define SPEAKER 6
 
-U8G2_SH1107_SEEED_128X128_F_HW_I2C Screen(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
-
 const uint8_t testIcon[] = {
-  0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 
-  0x0F, 0x0F, 0x0F, 0x0F, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 
-  0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0x0F, 0x0F, 0x0F, 0x0F, 
-  0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 
-  0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 
-  0xF0, 0xF0, 0xF0, 0xF0, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 
-  0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0xF0, 0xF0, 0xF0, 0xF0, 
-  0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 
-  0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 
-  0x0F, 0x0F, 0x0F, 0x0F, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 
-  0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0,
+  0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,
+  0x0F,0x0F,0x0F,0x0F,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,
+  0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0x0F,0x0F,0x0F,0x0F,
+  0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,
+  0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,
+  0xF0,0xF0,0xF0,0xF0,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,
+  0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0xF0,0xF0,0xF0,0xF0,
+  0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,
+  0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,
+  0x0F,0x0F,0x0F,0x0F,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,
+  0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,
 };
 
-enum Room
-{
+enum Room {
   None = 0,
   Bunks = 1,
   AiCore = 2,
@@ -60,12 +57,14 @@ void shuffleArray(int *array, int n) {
 }
 
 
+U8G2_SH1107_SEEED_128X128_F_HW_I2C Screen(U8G2_R3, /* reset=*/U8X8_PIN_NONE);
+
 const int buttonPin = 3;
 int buttonState = 0;
 int state = 0;
 bool isPressed = false;
 
-const int buttonPins[] = {3, 5};
+const int buttonPins[] = { 3, 5 };
 int buttonStates[2];
 
 //I2SStream output;
@@ -75,7 +74,17 @@ String KeypadOutput = "";
 
 //SAM Voice(Serial,true);
 //SAM Voice(output);
-int BassTab[]={1911,1702,1516,1431,1275,1136,1012};
+int BassTab[] = { 1911, 1702, 1516, 1431, 1275, 1136, 1012 };
+
+const char* Player1Id = "10e62b35-1ed8-4149-aeca-4df2e8b24132";
+const char* Player2Id = "";
+const char* ScreenControllerId = "646c3367-5f9c-4b50-bc95-4701b2d8ba50";
+
+int PlayerTurn = 1;
+
+//BLEDevice board;
+//BLEDevice pawn1;
+//BLEDevice pawn2;
 
 void assignArray() {
   randomSeed(analogRead(0));
@@ -106,7 +115,6 @@ void assignArray() {
     Serial.println();
   }
 }
-
 
 void setup() {
   // put your setup code here, to run once:
@@ -147,15 +155,18 @@ void setup() {
   delay(500);*/
 
   //BLE.begin();
-  assignArray();
+  //assignArray();
 
   Serial.println("Bluetooth® Low Energy Central - Server Board");
 
   // start scanning for peripherals
-  //BLE.scanForUuid("10e62b35-1ed8-4149-aeca-4df2e8b24132");
-  BLE.scan();
+  //BLE.scanForUuid(Player1Id);
+  //BLE.scanForUuid(ScreenControllerId);
+  //BLE.scan();
 
   //BLE.begin();
+
+  //board = BLE.available();
 }
 
 void loop() {
@@ -165,9 +176,7 @@ void loop() {
   //Screen.sendBuffer();
   //delay(100);
 
-  BLEDevice pawn = BLE.available();
-
-  //Serial.println(BLE.available());
+  /*BLEDevice pawn = BLE.available();
 
   if (pawn) {
     Serial.print("Found ");
@@ -179,21 +188,21 @@ void loop() {
     Serial.println();
     
     if (pawn.localName() != "Player 1")
-      {
-        Serial.println("Can't find pawn"); 
-        return;
-      }
+    {
+      Serial.println("Can't find pawn"); 
+      return;
+    }
     else
-      {
-        Serial.println("Found pawn"); 
-        BLE.stopScan();
-      }
+    {
+      Serial.println("Found pawn"); 
+      BLE.stopScan();
+    }
 
     if (pawn.connect())
-      {
-        Serial.println("Connected"); 
-        //digitalWrite(LEDR, HIGH);
-      }
+    {
+      Serial.println("Connected"); 
+      //digitalWrite(LEDR, HIGH);
+    }
     else
     {
       Serial.println("Can't connect"); 
@@ -201,16 +210,16 @@ void loop() {
     }
 
     if (pawn.discoverAttributes())
-    Serial.println("Attributes discovered");
+      Serial.println("Attributes discovered");
     else
     {
       pawn.disconnect();
       return;
     }
 
-    BLECharacteristic button1 = pawn.characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132", 0);
-    BLECharacteristic button2 = pawn.characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132", 1);
-    BLECharacteristic keypad = pawn.characteristic("10e62b35-1ed8-4149-aeca-4df2e8b24132", 2);
+    BLECharacteristic button1 = pawn.characteristic(Player1Id, 0);
+    BLECharacteristic button2 = pawn.characteristic(Player1Id, 1);
+    BLECharacteristic keypad = pawn.characteristic(Player1Id, 2);
 
     while (pawn.connected())
     {
@@ -293,63 +302,323 @@ void loop() {
     }
 
     BLE.scan();
+  }*/
+
+  //Serial.println(BLE.peripheralCount());
+
+  BLEDevice board = BLE.available();
+  BLEDevice pawn1;
+  BLEDevice pawn2;
+  
+  Serial.println("Scanning for board");
+  BLE.scanForUuid(ScreenControllerId);
+
+  while (!board) {
+    delay(100);
+    board = BLE.available();
+    //Serial.println("Scanning for board");
   }
 
-  //BLE.scanForUuid("10e62b35-1ed8-4149-aeca-4df2e8b24132");
+  Serial.print("Found ");
+  Serial.print(board.address());
+  Serial.print(" '");
+  Serial.print(board.localName());
+  Serial.print("' ");
+  Serial.print(board.advertisedServiceUuid());
+  Serial.println();
+
+  if (board.localName() != "") 
+    BLE.stopScan();
+
+  if (!board.connect())
+  {
+    Serial.println("Can't Connect");
+    //board = NULL;
+    return;
+  }
+
+  if (!board.discoverAttributes())
+  {
+    Serial.println("Can't discover attributes");
+    board.disconnect();
+    //board = NULL;
+    return;
+  }
+  Serial.println("Connected to board");
+
+  Serial.println("Scanning for pawn 1");
+  BLE.scanForUuid(Player1Id);
+  pawn1 = BLE.available();
+
+  while (!pawn1) {
+    delay(100);
+    pawn1 = BLE.available();
+    //Serial.println("Scanning for pawn 1");
+  }
+
+  Serial.print("Found ");
+  Serial.print(pawn1.address());
+  Serial.print(" '");
+  Serial.print(pawn1.localName());
+  Serial.print("' ");
+  Serial.print(pawn1.advertisedServiceUuid());
+  Serial.println();
+
+  if (pawn1.localName() != "") 
+    BLE.stopScan();
+
+  //BLECharacteristic input = board.characteristic(ScreenControllerId,0);
+
+  //setScreensTest(input);
+
+  if (!pawn1.connect())
+  {
+    Serial.println("Can't Connect");
+    //pawn1 = NULL;
+    return;
+  }
+
+  if (!pawn1.discoverAttributes())
+  {
+    Serial.println("Can't discover attributes");
+    pawn1.disconnect();
+    //pawn1 = NULL;
+    return;
+  }
+
+  Serial.println("Connected to Pawn 1");
   
+  /*if (!pawn2) {
+    BLE.scanForUuid(Player2Id);
+    pawn2 = BLE.available();
+
+    while (!pawn12) {
+      delay(200);
+      pawn2 = BLE.available();
+      //Serial.println("Scanning for pawn 1");
+    }
+
+    Serial.print("Found ");
+    Serial.print(pawn2.address());
+    Serial.print(" '");
+    Serial.print(pawn2.localName());
+    Serial.print("' ");
+    Serial.print(pawn2.advertisedServiceUuid());
+    Serial.println();
+
+    if (pawn2.localName() != "") 
+      BLE.stopScan();
+
+    //BLECharacteristic input = board.characteristic(ScreenControllerId,0);
+
+    //setScreensTest(input);
+
+    if (!pawn2.connect())
+    {
+      Serial.println("Can't Connect");
+      pawn2 = NULL;
+      return;
+    }
+
+    if (!pawn2.discoverAttributes())
+    {
+      Serial.println("Can't discover attributes");
+      pawn2.disconnect();
+      pawn2 = NULL;
+      return;
+    }
+  }*/
+
+  Serial.println("All devices connected");
+
+  // Main game loop
+  if (board && pawn1 /*&& pawn2*/)
+  {
+    Serial.println("Initializing characteristics");
+    BLECharacteristic boardInput = board.characteristic(ScreenControllerId,0);
+    
+    BLECharacteristic player1button1 = pawn1.characteristic(Player1Id, 0);
+    BLECharacteristic player1button2 = pawn1.characteristic(Player1Id, 1);
+    BLECharacteristic player1keypad = pawn1.characteristic(Player1Id, 2);
+
+    //BLECharacteristic player2button1 = pawn2.characteristic(Player2Id, 0);
+    //BLECharacteristic player2button2 = pawn2.characteristic(Player2Id, 1);
+    //BLECharacteristic player2keypad = pawn2.characteristic(Player2Id, 2);
+    
+    //SetScreensTest(input);
+
+    InitializeBoard(boardInput);
+
+    while (board.connected() && pawn1.connected() /*&& pawn2.connected()*/)
+    {
+
+      // Button toggle
+      buttonStates[0] = digitalRead(buttonPins[0]);
+      //buttonStates[1] = digitalRead(buttonPins[1]);
+      buttonStates[1] = 1;
+      int keypadOutput = GetKeypadOutput();
+
+      if (buttonStates[0] == LOW && !isPressed)
+      {
+        Serial.println("Pressing Button 1");
+        //digitalWrite(LEDR, (PinStatus)((++state)%2));
+        isPressed = true;
+        
+        switch (PlayerTurn) {
+          case 1:
+            player1button1.writeValue((byte)(0x01));
+            break;
+          case 2:
+            //player1button1.writeValue((byte)(0x01));
+            break;
+        }
+
+        digitalWrite(2, HIGH);
+      }
+      /*else if (buttonStates[1] == LOW && !isPressed)
+      {
+        Serial.println("Pressing Button 2");
+        isPressed = true;
+        
+        switch (PlayerTurn) {
+          case 1:
+            player1button2.writeValue((byte)(0x01));
+            break;
+          case 2:
+            //player1button2.writeValue((byte)(0x01));
+            break;
+        }
+
+        digitalWrite(4, HIGH);
+      }*/
+
+      else if (buttonStates[0] == HIGH && buttonStates[1] == HIGH)
+      {
+        //Serial.println("Resetting");
+        isPressed = false;
+        digitalWrite(2, LOW);
+        digitalWrite(4, LOW);
+      }
+
+      if (keypadOutput != 0x00) {
+        if (keypadOutput == 0xEC) {
+          Serial.print("Sending output:");
+          Serial.print(KeypadOutput.toInt());
+          Serial.println();
+
+          switch (PlayerTurn)
+          {
+            case 1:
+              player1keypad.writeValue((byte)(KeypadOutput.toInt()));
+              break;
+            case 2:
+              //player1button1.writeValue((byte)(KeypadOutput.toInt()));
+              break;
+          }
+          
+          KeypadOutput = "";
+        } else if (keypadOutput != 0xEA) {
+          switch (keypadOutput) {
+            case 0xE1:
+              KeypadOutput += "1";
+              break;
+            case 0xE2:
+              KeypadOutput += "2";
+              break;
+            case 0xE3:
+              KeypadOutput += "3";
+              break;
+            case 0xE4:
+              KeypadOutput += "4";
+              break;
+            case 0xE5:
+              KeypadOutput += "5";
+              break;
+            case 0xE6:
+              KeypadOutput += "6";
+              break;
+            case 0xE7:
+              KeypadOutput += "7";
+              break;
+            case 0xE8:
+              KeypadOutput += "8";
+              break;
+            case 0xE9:
+              KeypadOutput += "9";
+              break;
+            case 0xEB:
+              KeypadOutput += "0";
+              break;
+          }
+        } else {
+          KeypadOutput = "";
+        }
+      }
+    }
+  }
+
+  //BLE.scanForUuid(Player1Id);
+
+  if (board)
+    board.disconnect();
+
+  if (pawn1)
+    pawn1.disconnect();
+
+  BLE.scanForUuid(ScreenControllerId);
+
   //digitalWrite(LEDR, LOW);
 }
 
 int GetKeypadOutput() {
   int output = 0x00;
 
-  if (Serial1.available())
-  {
+  if (Serial1.available()) {
     output = Serial1.read();
   }
-  
+
   if (output != 0x00) {
     Serial.print("Reading keyboard output:");
     switch (output) {
-            case 0xE1:
-              Serial.print("1");
-              break;
-            case 0xE2:
-              Serial.print("2");
-              break;
-            case 0xE3:
-              Serial.print("3");
-              break;
-            case 0xE4:
-              Serial.print("4");
-              break;
-            case 0xE5:
-              Serial.print("5");
-              break;
-            case 0xE6:
-              Serial.print("6");
-              break;
-            case 0xE7:
-              Serial.print("7");
-              break;
-            case 0xE8:
-              Serial.print("8");
-              break;
-            case 0xE9:
-              Serial.print("9");
-              break;
-            case 0xEA:
-              Serial.print("*");
-              break;
-            case 0xEB:
-              Serial.print("0");
-              break;
-            case 0xEC:
-              Serial.print("#");
-              break;
-          }
+      case 0xE1:
+        Serial.print("1");
+        break;
+      case 0xE2:
+        Serial.print("2");
+        break;
+      case 0xE3:
+        Serial.print("3");
+        break;
+      case 0xE4:
+        Serial.print("4");
+        break;
+      case 0xE5:
+        Serial.print("5");
+        break;
+      case 0xE6:
+        Serial.print("6");
+        break;
+      case 0xE7:
+        Serial.print("7");
+        break;
+      case 0xE8:
+        Serial.print("8");
+        break;
+      case 0xE9:
+        Serial.print("9");
+        break;
+      case 0xEA:
+        Serial.print("*");
+        break;
+      case 0xEB:
+        Serial.print("0");
+        break;
+      case 0xEC:
+        Serial.print("#");
+        break;
+    }
     Serial.println();
-  } 
+  }
 
   return output;
 }
@@ -389,13 +658,56 @@ int GetKeypadOutput() {
   }
 }*/
 
-void sound(uint8_t note_index)
-{
-    for(int i=0;i<100;i++)
-    {
-        digitalWrite(SPEAKER,HIGH);
-        delayMicroseconds(BassTab[note_index]);
-        digitalWrite(SPEAKER,LOW);
-        delayMicroseconds(BassTab[note_index]);
-    }
+void sound(uint8_t note_index) {
+  for (int i = 0; i < 100; i++) {
+    digitalWrite(SPEAKER, HIGH);
+    delayMicroseconds(BassTab[note_index]);
+    digitalWrite(SPEAKER, LOW);
+    delayMicroseconds(BassTab[note_index]);
+  }
+}
+
+void SetScreensTest(BLECharacteristic screens) {
+  Serial.println("Writing to screens");
+
+  // Test function
+  for (int x = 0; x < 16; x++) {
+    byte value = x << 4;
+    Serial.print(value, BIN);
+    value += x;
+    Serial.print(" => ");
+    Serial.print(value, BIN);
+    
+    Serial.print(" | ");
+    Serial.print((int)screens.value());
+
+    screens.writeValue(value);
+    Serial.print(" => ");
+    Serial.println((int)screens.value());
+    delay(100);
+  }
+}
+
+void InitializeBoard(BLECharacteristic screens) {
+  assignArray();
+
+  /*3for (int x = 0; x < 16; x++)
+  {
+    byte value = x << 4;
+    //value += matrix[x][y];
+    value += numbers[x];
+    Serial.println(value, BIN);
+    screens.writeValue(value);
+    delay(200);
+  }*/
+
+  for (int y = 0; y < 4; y++)
+    for (int x = 0; x < 4; x++)
+      {
+        byte value = (y*x + x) << 4;
+        value += matrix[x][y];
+        Serial.println(value, BIN);
+        screens.writeValue(value);
+        delay(200);
+      }
 }
