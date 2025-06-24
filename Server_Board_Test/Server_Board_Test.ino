@@ -45,7 +45,7 @@ enum Room {
 
 const int SIZE = 4;
 int matrix[SIZE][SIZE];
-int numbers[SIZE * SIZE];
+int numbers[SIZE * SIZE - 2]; // reservered for bunks/aiCore
 
 void shuffleArray(int *array, int n) {
   for (int i = n - 1; i > 0; --i) {
@@ -91,18 +91,24 @@ void assignArray() {
 
   // Fill array with numbers 1 to 16
   for (int i = 0; i < SIZE * SIZE - 1; ++i) {
-    numbers[i] = i + 1;
+    numbers[i] = i + 3;
   }
   numbers[SIZE * SIZE - 1] = 0;
 
   // Shuffle the numbers
-  shuffleArray(numbers, SIZE * SIZE);
+  shuffleArray(numbers, SIZE * SIZE -2);
 
   // Fill the 4x4 matrix
   int index = 0;
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
-      matrix[i][j] = numbers[index++];
+      if (i == 0 && j == 0) {
+        matrix[i][j] = 1;
+      } else if (i == SIZE - 1 && j == SIZE - 1) {
+        matrix[i][j] = 2;
+      } else {
+        matrix[i][j] = numbers[index++];
+      }
     }
   }
 
@@ -114,6 +120,38 @@ void assignArray() {
     }
     Serial.println();
   }
+}
+
+void move() {        //vet inte vad för input typ vi använder // om denna ska ligga i player eller här, hur vi ska göra med Bt
+  char input = Serial.read();
+
+  int newX = playerX;
+  int newY = playerY;
+  if (input == 'w') newY--;
+    else if (input == 's') newY++;
+    else if (input == 'a') newX--;
+    else if (input == 'd') newX++;
+
+    // Check boundaries
+    if (newX >= 0 && newX < SIZE && newY >= 0 && newY < SIZE) {
+      playerX = newX;
+      playerY = newY;
+    }
+}
+
+void printMatrix() {
+  for (int i = 0; i < SIZE; ++i) {
+    for (int j = 0; j < SIZE; ++j) {
+      if (i == playerY && j == playerX) {
+        Serial.print("[P]");
+      } else {
+        Serial.print(matrix[i][j]);
+        Serial.print("\t");
+      }
+    }
+    Serial.println();
+  }
+  Serial.println();
 }
 
 void setup() {
