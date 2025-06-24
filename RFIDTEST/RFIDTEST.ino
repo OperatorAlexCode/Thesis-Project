@@ -16,14 +16,19 @@ MFRC522DriverSPI driver{ss_pin}; // Create SPI driver
 //MFRC522DriverI2C driver{};     // Create I2C driver
 MFRC522 mfrc522{driver};         // Create MFRC522 instance
 
+byte lastUid[10];
+byte lastSize = 0;
+
 void setup() {
   //display.init();
   //display.flipScreenVertically();
   //display.setFont(ArialMT_Plain_10);
   Serial.begin(115200);  // Initialize serial communication
   while (!Serial);       // Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4).
+   SPI.begin(); // Init SPI bus
   mfrc522.PCD_Init();    // Init MFRC522 board.
-  SPI.begin(); // Init SPI bus
+
+ 
   MFRC522Debug::PCD_DumpVersionToSerial(mfrc522, Serial);	// Show details of PCD - MFRC522 Card Reader details.
   Serial.println(F("Scan PICC to see UID, SAK, type, and data blocks..."));
 }
@@ -32,10 +37,11 @@ void loop() {
   // display.clear();                       
   // display.drawString(0,0,"goodbye world");
   // display.display();                 //fuckar rfid läsaren
-  while(readID()) { 
+  if(isNewCard()) { 
     dump();
     print();
   }
+  delay(20);
 }
 
 // Dump debug info about the card; PICC_HaltA() is automatically called.
@@ -53,17 +59,24 @@ void print()  {
     uidString += String(mfrc522.uid.uidByte[i], HEX);
   }
   Serial.println(uidString);
-  delay(2000);
 }
 
 
-boolean readID()  {
+boolean isNewCard()  {
   byte bufferATQA[2];
   byte bufferSize = sizeof(bufferATQA);
   mfrc522.PICC_WakeupA(bufferATQA, &bufferSize);
     if (!mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) {
       return false;
   }
-    mfrc522.PICC_HaltA(); // Stop reading
+    // Compare with last UID
+  if (mfrc522.uid.size != lastSize || memcmp(mfrc522.uid.uidByte, lastUid, mfrc522.uid.size) != 0) {
+    memcpy(lastUid, mfrc522.uid.uidByte, mfrc522.uid.size);
+    lastSize = mfrc522.uid.size;
+    mfrc522.PICC_HaltA();
     return true;
+  }
+
+  mfrc522.PICC_HaltA();
+  return false;
 }
