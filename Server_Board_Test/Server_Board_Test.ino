@@ -423,7 +423,7 @@ void loop() {
     //pawn1 = NULL;
     return;
   }
-
+  
   Serial.println("Connected to Pawn 1");
   
   /*if (!pawn2) {
@@ -476,14 +476,17 @@ void loop() {
     BLECharacteristic boardInput = board.characteristic(ScreenControllerId,0);
     
     BLECharacteristic player1button1 = pawn1.characteristic(Player1Id, 0);
-    BLECharacteristic player1button2 = pawn1.characteristic(Player1Id, 1);
-    BLECharacteristic player1keypad = pawn1.characteristic(Player1Id, 2);
+    //BLECharacteristic player1button2 = pawn1.characteristic(Player1Id, 1);
+    BLECharacteristic player1keypad = pawn1.characteristic(Player1Id, 1);
+    BLECharacteristic readTag = pawn1.characteristic(Player1Id,2);
 
     //BLECharacteristic player2button1 = pawn2.characteristic(Player2Id, 0);
     //BLECharacteristic player2button2 = pawn2.characteristic(Player2Id, 1);
     //BLECharacteristic player2keypad = pawn2.characteristic(Player2Id, 2);
     
     //SetScreensTest(input);
+
+    readTag.subscribe();
 
     InitializeBoard(boardInput);
 
@@ -591,6 +594,15 @@ void loop() {
         } else {
           KeypadOutput = "";
         }
+      }
+
+      if (readTag.valueUpdated())
+      {
+        Serial.print("Pawn moved to: ");
+        //String value = String(readTag.value());
+        //readTag.readValue(value);
+        String value = reinterpret_cast<const char *>(readTag.value());
+        Serial.println(value);
       }
     }
   }
@@ -729,11 +741,11 @@ void SetScreensTest(BLECharacteristic screens) {
 void InitializeBoard(BLECharacteristic screens) {
   assignArray();
 
-  /*3for (int x = 0; x < 16; x++)
+  /*for (int x = 0; x < 16; x++)
   {
     byte value = x << 4;
-    //value += matrix[x][y];
-    value += numbers[x];
+    value += matrix[x%4][y];
+    //value += numbers[x];
     Serial.println(value, BIN);
     screens.writeValue(value);
     delay(200);
@@ -742,9 +754,20 @@ void InitializeBoard(BLECharacteristic screens) {
   for (int y = 0; y < 4; y++)
     for (int x = 0; x < 4; x++)
       {
-        byte value = (y*x + x) << 4;
+        byte value = (y*4 + x) << 4;
         value += matrix[x][y];
-        Serial.println(value, BIN);
+        Serial.print(x);
+        Serial.print(",");
+        Serial.print(y);
+        Serial.print(" | ");
+        Serial.print(y*x + x);
+        Serial.print(" | ");
+        
+        for (int z = 0; z < 8; z++)
+          Serial.print(bitRead(value,z));
+        
+        Serial.println("");
+        //Serial.println(value,BIN);
         screens.writeValue(value);
         delay(200);
       }

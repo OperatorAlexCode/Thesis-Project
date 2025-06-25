@@ -1637,17 +1637,28 @@ void loop() {
 
 void WriteToScreen(BLEDevice central, BLECharacteristic characteristic) {
   Serial.print("Recieved value:");
-  Serial.println(Input.value(),BIN);
+  for (int x = 0; x < 8; x++)
+    Serial.print(bitRead(Input.value(),x));
 
+  Serial.println("");
   byte input = Input.value();
 
   byte value = 0b00001111 & input;
   byte index = (0b11110000 & input) >> 4;
 
-  Serial.print(value,BIN);
-  Serial.print(" | ");
-  Serial.println(index,BIN);
+  //Serial.print(value,BIN);
+  //Serial.print(" | ");
+  //Serial.println(index,BIN);
 
+  for (int x = 0; x < 8; x++)
+    Serial.print(bitRead(value,x));
+  
+  Serial.print(" | ");
+  
+  for (int x = 0; x < 8; x++)
+    Serial.print(bitRead(index,x));
+
+  Serial.println("");
   if (index < 16 && value < 16)
     SetTile(index,value);
 }
