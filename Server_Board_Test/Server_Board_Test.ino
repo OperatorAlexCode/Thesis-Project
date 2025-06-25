@@ -385,7 +385,7 @@ void loop() {
     //pawn1 = NULL;
     return;
   }
-
+  
   Serial.println("Connected to Pawn 1");
   
   /*if (!pawn2) {
@@ -438,14 +438,17 @@ void loop() {
     BLECharacteristic boardInput = board.characteristic(ScreenControllerId,0);
     
     BLECharacteristic player1button1 = pawn1.characteristic(Player1Id, 0);
-    BLECharacteristic player1button2 = pawn1.characteristic(Player1Id, 1);
-    BLECharacteristic player1keypad = pawn1.characteristic(Player1Id, 2);
+    //BLECharacteristic player1button2 = pawn1.characteristic(Player1Id, 1);
+    BLECharacteristic player1keypad = pawn1.characteristic(Player1Id, 1);
+    BLECharacteristic readTag = pawn1.characteristic(Player1Id,2);
 
     //BLECharacteristic player2button1 = pawn2.characteristic(Player2Id, 0);
     //BLECharacteristic player2button2 = pawn2.characteristic(Player2Id, 1);
     //BLECharacteristic player2keypad = pawn2.characteristic(Player2Id, 2);
     
     //SetScreensTest(input);
+
+    readTag.subscribe();
 
     InitializeBoard(boardInput);
 
@@ -553,6 +556,15 @@ void loop() {
         } else {
           KeypadOutput = "";
         }
+      }
+
+      if (readTag.valueUpdated())
+      {
+        Serial.print("Pawn moved to: ");
+        //String value = String(readTag.value());
+        //readTag.readValue(value);
+        String value = reinterpret_cast<const char *>(readTag.value());
+        Serial.println(value);
       }
     }
   }

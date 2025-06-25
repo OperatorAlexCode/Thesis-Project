@@ -22,8 +22,9 @@ enum Item
 BLEService GamePawn("10e62b35-1ed8-4149-aeca-4df2e8b24132");
 
 BLEIntCharacteristic Button1Characteristic(GamePawn.uuid(), BLERead | BLEWrite);
-BLEIntCharacteristic Button2Characteristic(GamePawn.uuid(), BLERead | BLEWrite);
+//BLEIntCharacteristic Button2Characteristic(GamePawn.uuid(), BLERead | BLEWrite);
 BLEIntCharacteristic KeypadCharacteristic(GamePawn.uuid(), BLERead | BLEWrite);
+BLEStringCharacteristic RfidIdCharacteristic(GamePawn.uuid(), BLERead | BLEWrite | BLENotify, 14);
 MFRC522DriverPinSimple ss_pin(5);
 //SSD1306Wire display(0x3c, 21, 22);
 MFRC522DriverSPI driver{ss_pin}; // Create SPI driver
@@ -51,7 +52,7 @@ void setup() {
   //display.flipScreenVertically();
   //display.setFont(ArialMT_Plain_10);
 
-  Serial.begin(9600);
+  Serial.begin(115200);
   while (!Serial);
   mfrc522.PCD_Init();    // Init MFRC522 board.
   SPI.begin(); // Init SPI bus
@@ -72,12 +73,13 @@ void setup() {
   BLE.setAdvertisedService(GamePawn);
 
   GamePawn.addCharacteristic(Button1Characteristic);
-  GamePawn.addCharacteristic(Button2Characteristic);
+  //GamePawn.addCharacteristic(Button2Characteristic);
   GamePawn.addCharacteristic(KeypadCharacteristic);
+  GamePawn.addCharacteristic(RfidIdCharacteristic);
 
   BLE.addService(GamePawn);
   Button1Characteristic.writeValue(0);
-  Button2Characteristic.writeValue(0);
+  //Button2Characteristic.writeValue(0);
   KeypadCharacteristic.writeValue(0);
 
   // start advertising
@@ -104,10 +106,13 @@ void loop() {
     // while the central is still connected to peripheral:
     while (central.connected())
     {
-      while(readID()) { 
-        dump();
+      while(readID()) {
+        Serial.println("Reading tag");
+        //dump();
         //print();
-        Serial.println("Id: " + GetId());
+
+        RfidIdCharacteristic.writeValue(GetId());
+        Serial.println("Id: " + RfidIdCharacteristic.value());
       }
 
       // Button 1
@@ -264,6 +269,7 @@ void UpdateDisplay()
   }
   
   Screen.sendBuffer();
+  mfrc522.PCD_Init();
 }
 
 void UpdateHealthBar()
