@@ -691,11 +691,11 @@ void SetScreensTest(BLECharacteristic screens) {
 void InitializeBoard(BLECharacteristic screens) {
   assignArray();
 
-  /*3for (int x = 0; x < 16; x++)
+  /*for (int x = 0; x < 16; x++)
   {
     byte value = x << 4;
-    //value += matrix[x][y];
-    value += numbers[x];
+    value += matrix[x%4][y];
+    //value += numbers[x];
     Serial.println(value, BIN);
     screens.writeValue(value);
     delay(200);
@@ -704,9 +704,20 @@ void InitializeBoard(BLECharacteristic screens) {
   for (int y = 0; y < 4; y++)
     for (int x = 0; x < 4; x++)
       {
-        byte value = (y*x + x) << 4;
+        byte value = (y*4 + x) << 4;
         value += matrix[x][y];
-        Serial.println(value, BIN);
+        Serial.print(x);
+        Serial.print(",");
+        Serial.print(y);
+        Serial.print(" | ");
+        Serial.print(y*x + x);
+        Serial.print(" | ");
+        
+        for (int z = 0; z < 8; z++)
+          Serial.print(bitRead(value,z));
+        
+        Serial.println("");
+        //Serial.println(value,BIN);
         screens.writeValue(value);
         delay(200);
       }

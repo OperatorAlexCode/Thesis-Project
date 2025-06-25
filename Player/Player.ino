@@ -64,7 +64,7 @@ void setup() {
     while (1);
   }
 
-  String name = String("Player");
+  String name = String("Player ");
   name += String(PlayerId);
 
   // set advertised local name and service UUID:
