@@ -45,6 +45,9 @@ int PlayerId = 1;
 const int InventorySize = 3;
 Item Inventory[3] /*= {Item::Medkit, Item::None, Item::Beer}*/;
 
+byte lastUid[10];
+byte lastSize = 0;
+
 void setup() {
   // put your setup code here, to run once:
   Initialize();
@@ -54,8 +57,8 @@ void setup() {
 
   Serial.begin(115200);
   while (!Serial);
-  mfrc522.PCD_Init();    // Init MFRC522 board.
   SPI.begin(); // Init SPI bus
+  mfrc522.PCD_Init();    // Init MFRC522 board.
   //MFRC522Debug::PCD_DumpVersionToSerial(mfrc522, Serial);	// Show details of PCD - MFRC522 Card Reader details.
   Serial.println(F("Scan PICC to see UID, SAK, type, and data blocks..."));
   // begin initialization
@@ -111,7 +114,7 @@ void loop() {
     // while the central is still connected to peripheral:
     while (central.connected())
     {
-      while(readID()) {
+      if(isNewCard()) {
         Serial.println("Reading tag");
         //dump();
         //print();
@@ -218,16 +221,26 @@ String GetId() {
   return uidString;
 }
 
-boolean readID()  {
+bool isNewCard() {
   byte bufferATQA[2];
   byte bufferSize = sizeof(bufferATQA);
   mfrc522.PICC_WakeupA(bufferATQA, &bufferSize);
-    if (!mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) {
-      return false;
+  if (!mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) {
+    return false;
   }
-  mfrc522.PICC_HaltA(); // Stop reading
-  return true;
+
+  // Compare with last UID
+  if (mfrc522.uid.size != lastSize || memcmp(mfrc522.uid.uidByte, lastUid, mfrc522.uid.size) != 0) {
+    memcpy(lastUid, mfrc522.uid.uidByte, mfrc522.uid.size);
+    lastSize = mfrc522.uid.size;
+    mfrc522.PICC_HaltA();
+    return true;
+  }
+
+  mfrc522.PICC_HaltA();
+  return false;
 }
+
 
 void UpdateDisplay()
 {
