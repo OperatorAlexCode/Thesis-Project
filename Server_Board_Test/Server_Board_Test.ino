@@ -24,23 +24,22 @@ const uint8_t testIcon[] = {
 };
 
 enum Room {
-  None = 0,
-  Bunks = 1,
-  AiCore = 2,
-  Kitchen = 3,
-  Reactor = 4,
-  Medbay = 5,
-  CargoHold = 6,
-  Armory = 7,
-  LifeSupport = 8,
-  RecyclingCenter = 9,
-  RecreationalCenter = 10,
-  DrillControls = 11,
-  OreRefinery = 12,
-  TrainingCenter = 13,
-  Airlock = 14,
-  Aquaponics = 15,
-  Storage = 16
+  Bunks = 0,
+  AiCore = 1,
+  Kitchen = 2,
+  Reactor = 3,
+  Medbay = 4,
+  CargoHold = 5,
+  Armory = 6,
+  LifeSupport = 7,
+  RecyclingCenter = 8,
+  RecreationalCenter = 9,
+  DrillControls = 10,
+  OreRefinery = 11,
+  TrainingCenter = 12,
+  Airlock = 13,
+  Aquaponics = 14,
+  Storage = 15
 };
 
 const int SIZE = 4;
@@ -91,9 +90,9 @@ void assignArray() {
 
   // Fill array with numbers 1 to 16
   for (int i = 0; i < SIZE * SIZE - 1; ++i) {
-    numbers[i] = i + 3;
+    numbers[i] = i 2;
   }
-  numbers[SIZE * SIZE - 1] = 0;
+  //numbers[SIZE * SIZE - 1] = 0;
 
   // Shuffle the numbers
   shuffleArray(numbers, SIZE * SIZE -2);
@@ -103,9 +102,9 @@ void assignArray() {
   for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
       if (i == 0 && j == 0) {
-        matrix[i][j] = 1;
+        matrix[i][j] = 0;
       } else if (i == SIZE - 1 && j == SIZE - 1) {
-        matrix[i][j] = 2;
+        matrix[i][j] = 1;
       } else {
         matrix[i][j] = numbers[index++];
       }
