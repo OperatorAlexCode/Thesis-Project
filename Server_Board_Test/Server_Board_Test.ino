@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <ArduinoBLE.h>
-#include <sam_arduino.h>
+//#include <sam_arduino.h>
 //#include <AudioTools.h>
 #include <vector>
 //#include "TCA9548A.h"
@@ -45,6 +45,10 @@ enum Room {
 const int SIZE = 4;
 int matrix[SIZE][SIZE];
 int numbers[SIZE * SIZE - 2]; // reservered for bunks/aiCore
+
+
+int Player1PosX = 0, Player1PosY = 0;
+int Player2PosX = 0, Player2PosY = 0;
 
 void shuffleArray(int *array, int n) {
   for (int i = n - 1; i > 0; --i) {
@@ -607,10 +611,16 @@ void loop() {
         //String value = String(readTag.value());
         //readTag.readValue(value);
         String value = reinterpret_cast<const char *>(readTag.value());
-        Serial.println(value);
+        
+        if(IsAdjacent(value, PlayerTurn, true)){
+          Serial.println(value);
+        }
+        
       }
     }
   }
+
+
 
   //BLE.scanForUuid(Player1Id);
 
@@ -623,6 +633,73 @@ void loop() {
   BLE.scanForUuid(ScreenControllerId);
 
   //digitalWrite(LEDR, LOW);
+}
+
+bool IsAdjacent(String scannedID, int player, bool move) {
+  switch (player) {
+    case 1:
+      if(Player1PosY - 1 >= 0){
+        if(Ids[Player1PosX][Player1PosY - 1] == scannedID){
+          if(move)
+            Player1PosY--;
+          return true;
+        }
+      }
+        if(Player1PosY  + 1 < SIZE){
+          if(Ids[Player1PosX][Player1PosY + 1] == scannedID){
+            if(move)
+              Player1PosY++;
+          return true;
+        }
+      }
+      if(Player1PosX - 1 >= 0){
+          if(Ids[Player1PosX - 1][Player1PosY] == scannedID){
+            if(move)
+              Player1PosX--;
+            return true;
+        }
+      }
+      if(Player1PosX  + 1 < SIZE){
+        if(Ids[Player1PosX + 1][Player1PosY] == scannedID){
+          if(move)
+            Player1PosX++;
+          return true;
+          }
+      }
+    return false;
+    case 2:
+      if(Player2PosY - 1 >= 0){
+        if(Ids[Player2PosX][Player2PosY - 1] == scannedID){
+          if(move)
+            Player1PosY--;
+          return true;
+        }
+      }
+        if(Player2PosY  + 1 < SIZE){
+          if(Ids[Player2PosX][Player2PosY + 1] == scannedID){
+            if(move)
+              Player1PosY++;
+            return true;
+        }
+      }
+        if(Player2PosX - 1 >= 0){
+          if(Ids[Player2PosX - 1][Player2PosY] == scannedID){
+            if(move)
+              Player1PosX--;
+            return true;
+        }
+      }
+        if(Player2PosX  + 1 < SIZE){
+          if(Ids[Player2PosX + 1][Player2PosY] == scannedID){
+            if(move)
+              Player1PosX++;
+            return true;
+        }
+      }
+        //player1button1.writeValue((byte)(0x01));
+    return false;
+  }
+            
 }
 
 int GetKeypadOutput() {
