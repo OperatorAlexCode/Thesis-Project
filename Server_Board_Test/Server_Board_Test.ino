@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <ArduinoBLE.h>
-#include <sam_arduino.h>
+//#include <sam_arduino.h>
 //#include <AudioTools.h>
 #include <vector>
 //#include "TCA9548A.h"
@@ -90,7 +90,7 @@ void assignArray() {
 
   // Fill array with numbers 1 to 16
   for (int i = 0; i < SIZE * SIZE - 1; ++i) {
-    numbers[i] = i 2;
+    numbers[i] = i + 2;
   }
   //numbers[SIZE * SIZE - 1] = 0;
 
@@ -121,37 +121,37 @@ void assignArray() {
   }
 }
 
-void move() {        //vet inte vad för input typ vi använder // om denna ska ligga i player eller här, hur vi ska göra med Bt
-  char input = Serial.read();
+// void move() {        //vet inte vad för input typ vi använder // om denna ska ligga i player eller här, hur vi ska göra med Bt
+//   char input = Serial.read();
 
-  int newX = playerX;
-  int newY = playerY;
-  if (input == 'w') newY--;
-    else if (input == 's') newY++;
-    else if (input == 'a') newX--;
-    else if (input == 'd') newX++;
+//   int newX = playerX;
+//   int newY = playerY;
+//   if (input == 'w') newY--;
+//     else if (input == 's') newY++;
+//     else if (input == 'a') newX--;
+//     else if (input == 'd') newX++;
 
-    // Check boundaries
-    if (newX >= 0 && newX < SIZE && newY >= 0 && newY < SIZE) {
-      playerX = newX;
-      playerY = newY;
-    }
-}
+//     // Check boundaries
+//     if (newX >= 0 && newX < SIZE && newY >= 0 && newY < SIZE) {
+//       playerX = newX;
+//       playerY = newY;
+//     }
+// }
 
-void printMatrix() {
-  for (int i = 0; i < SIZE; ++i) {
-    for (int j = 0; j < SIZE; ++j) {
-      if (i == playerY && j == playerX) {
-        Serial.print("[P]");
-      } else {
-        Serial.print(matrix[i][j]);
-        Serial.print("\t");
-      }
-    }
-    Serial.println();
-  }
-  Serial.println();
-}
+// void printMatrix() {
+//   for (int i = 0; i < SIZE; ++i) {
+//     for (int j = 0; j < SIZE; ++j) {
+//       if (i == playerY && j == playerX) {
+//         Serial.print("[P]");
+//       } else {
+//         Serial.print(matrix[i][j]);
+//         Serial.print("\t");
+//       }
+//     }
+//     Serial.println();
+//   }
+//   Serial.println();
+// }
 
 void setup() {
   // put your setup code here, to run once:
