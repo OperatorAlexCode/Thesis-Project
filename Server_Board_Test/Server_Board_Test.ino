@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <ArduinoBLE.h>
-//#include <sam_arduino.h>
+#include <sam_arduino.h>
 //#include <AudioTools.h>
 #include <vector>
 //#include "TCA9548A.h"
@@ -55,6 +55,12 @@ void shuffleArray(int *array, int n) {
   }
 }
 
+String Ids[SIZE][SIZE] = {
+  { String("53123f2aa00001"), String("placeholder001"), String("534c4a2aa00001"), String("ff0ff20d5c0000")},
+  { String("53751c2aa00001"), String("536e242aa00001"), String("ff0f820c5c0000"), String("ff0ff40d5c0000")},
+  { String("53850f2aa00001"), String("53652e2aa00001"), String("ff0ff10d5c0000"), String("5399132aa00001")},
+  { String("53764f2aa00001"), String("5331452aa00001"), String("534d182aa00001"), String("ff0ff30d5c0000")}
+};
 
 U8G2_SH1107_SEEED_128X128_F_HW_I2C Screen(U8G2_R3, /* reset=*/U8X8_PIN_NONE);
 
@@ -121,37 +127,37 @@ void assignArray() {
   }
 }
 
-// void move() {        //vet inte vad för input typ vi använder // om denna ska ligga i player eller här, hur vi ska göra med Bt
-//   char input = Serial.read();
+/*void move() {        //vet inte vad för input typ vi använder // om denna ska ligga i player eller här, hur vi ska göra med Bt
+  char input = Serial.read();
 
-//   int newX = playerX;
-//   int newY = playerY;
-//   if (input == 'w') newY--;
-//     else if (input == 's') newY++;
-//     else if (input == 'a') newX--;
-//     else if (input == 'd') newX++;
+  int newX = playerX;
+  int newY = playerY;
+  if (input == 'w') newY--;
+    else if (input == 's') newY++;
+    else if (input == 'a') newX--;
+    else if (input == 'd') newX++;
 
-//     // Check boundaries
-//     if (newX >= 0 && newX < SIZE && newY >= 0 && newY < SIZE) {
-//       playerX = newX;
-//       playerY = newY;
-//     }
-// }
+    // Check boundaries
+    if (newX >= 0 && newX < SIZE && newY >= 0 && newY < SIZE) {
+      playerX = newX;
+      playerY = newY;
+    }
+}*/
 
-// void printMatrix() {
-//   for (int i = 0; i < SIZE; ++i) {
-//     for (int j = 0; j < SIZE; ++j) {
-//       if (i == playerY && j == playerX) {
-//         Serial.print("[P]");
-//       } else {
-//         Serial.print(matrix[i][j]);
-//         Serial.print("\t");
-//       }
-//     }
-//     Serial.println();
-//   }
-//   Serial.println();
-// }
+/*void printMatrix() {
+  for (int i = 0; i < SIZE; ++i) {
+    for (int j = 0; j < SIZE; ++j) {
+      if (i == playerY && j == playerX) {
+        Serial.print("[P]");
+      } else {
+        Serial.print(matrix[i][j]);
+        Serial.print("\t");
+      }
+    }
+    Serial.println();
+  }
+  Serial.println();
+}*/
 
 void setup() {
   // put your setup code here, to run once:
@@ -487,11 +493,11 @@ void loop() {
 
     readTag.subscribe();
 
+    assignArray();
     InitializeBoard(boardInput);
 
     while (board.connected() && pawn1.connected() /*&& pawn2.connected()*/)
     {
-
       // Button toggle
       buttonStates[0] = digitalRead(buttonPins[0]);
       //buttonStates[1] = digitalRead(buttonPins[1]);
@@ -738,8 +744,6 @@ void SetScreensTest(BLECharacteristic screens) {
 }
 
 void InitializeBoard(BLECharacteristic screens) {
-  assignArray();
-
   /*for (int x = 0; x < 16; x++)
   {
     byte value = x << 4;
