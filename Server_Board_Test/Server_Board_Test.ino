@@ -611,10 +611,11 @@ void loop() {
         //String value = String(readTag.value());
         //readTag.readValue(value);
         String value = reinterpret_cast<const char *>(readTag.value());
-        
-        if(IsAdjacent(value, PlayerTurn, true)){
-          Serial.println(value);
-        }
+        Serial.print(value);
+        if(IsAdjacent(value, PlayerTurn, true))
+          Serial.println("true");
+        else
+          Serial.println("false");
         
       }
     }
