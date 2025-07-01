@@ -60,10 +60,10 @@ void shuffleArray(int *array, int n) {
 }
 
 String Ids[SIZE][SIZE] = {
-  { String("53123f2aa00001"), String("placeholder001"), String("534c4a2aa00001"), String("ff0ff20d5c0000")},
-  { String("53751c2aa00001"), String("536e242aa00001"), String("ff0f820c5c0000"), String("ff0ff40d5c0000")},
-  { String("53850f2aa00001"), String("53652e2aa00001"), String("ff0ff10d5c0000"), String("5399132aa00001")},
-  { String("53764f2aa00001"), String("5331452aa00001"), String("534d182aa00001"), String("ff0ff30d5c0000")}
+  { String("53123f2aa00001"), String("placeholder001"), String("534c4a2aa00001"), String("ff0ff20d5c0000") },
+  { String("53751c2aa00001"), String("536e242aa00001"), String("ff0f820c5c0000"), String("ff0ff40d5c0000") },
+  { String("53850f2aa00001"), String("53652e2aa00001"), String("ff0ff10d5c0000"), String("5399132aa00001") },
+  { String("53764f2aa00001"), String("5331452aa00001"), String("534d182aa00001"), String("ff0ff30d5c0000") }
 };
 
 U8G2_SH1107_SEEED_128X128_F_HW_I2C Screen(U8G2_R3, /* reset=*/U8X8_PIN_NONE);

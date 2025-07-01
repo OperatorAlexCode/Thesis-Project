@@ -32,7 +32,7 @@ MFRC522 mfrc522{driver};
 
 U8G2_SSD1306_128X64_NONAME_F_SW_I2C Screen(U8G2_R0,/*clock=*/22,/*data=*/21,U8X8_PIN_NONE);
 
-Adafruit_NeoPixel HealthBar = Adafruit_NeoPixel(8,15);
+Adafruit_NeoPixel HealthBar(8,15, NEO_GRB + NEO_KHZ800);
 
 int Health = 0;
 int MaxHealth = 6;
@@ -60,7 +60,7 @@ void setup() {
   SPI.begin(); // Init SPI bus
   mfrc522.PCD_Init();    // Init MFRC522 board.
   //MFRC522Debug::PCD_DumpVersionToSerial(mfrc522, Serial);	// Show details of PCD - MFRC522 Card Reader details.
-  Serial.println(F("Scan PICC to see UID, SAK, type, and data blocks..."));
+  //Serial.println(F("Scan PICC to see UID, SAK, type, and data blocks..."));
   // begin initialization
   // begin initialization
   if (!BLE.begin()) {
@@ -108,8 +108,8 @@ void loop() {
     Serial.print("Connected to central: ");
     // print the central's MAC address:
     Serial.println(central.address());
-    UpdateDisplay();
     UpdateHealthBar();
+    UpdateDisplay();
 
     // while the central is still connected to peripheral:
     while (central.connected())
@@ -129,8 +129,8 @@ void loop() {
       {
         AddItemTest();
         Button1Characteristic.writeValue(0);
-        UpdateDisplay();
         UpdateHealthBar();
+        UpdateDisplay();
       }
 
       // Button 2
@@ -154,8 +154,8 @@ void loop() {
         Serial.println();
         UseItem(KeypadCharacteristic.value()-1);
         KeypadCharacteristic.writeValue(0);
-        UpdateDisplay();
         UpdateHealthBar();
+        UpdateDisplay();
       }
 
       // if the remote device wrote to the characteristic,
@@ -174,22 +174,23 @@ void loop() {
 
 void Initialize()
 {
-  HealthBar.begin();
-
   Screen.begin();
   Screen.setFont(u8g2_font_7x14B_tr);
   Screen.clearBuffer();
   Screen.drawBox(2, 2, 100, 50);
   Screen.sendBuffer();
 
+  HealthBar.begin();
+
   for (int x = 0; x < GetArrayLength(sizeof(Inventory),sizeof(Inventory[0])); x++)
     Inventory[x] = Item::None;
 
   for (int x = 0; x < InventorySize; x++)
     if (Inventory[x] != Item::None)
-    itemsInInventory++;
+      itemsInInventory++;
 
   Health = MaxHealth;
+  //UpdateHealthBar();
 }
 
 void dump()   {
@@ -244,6 +245,7 @@ bool isNewCard() {
 
 void UpdateDisplay()
 {
+  Serial.println("Updating Display");
   Screen.clearBuffer();
   Screen.drawStr(0, 10, "Player 1");
   /*for (int x = 0; x < itemsInInventory; x++)
@@ -292,6 +294,7 @@ void UpdateDisplay()
 
 void UpdateHealthBar()
 {
+  Serial.println("Updating Health Bar");
   HealthBar.clear();
 
   // Simple
@@ -328,7 +331,7 @@ void UpdateHealthBar()
   uint32_t color = HealthBar.Color(20, 0, 0);
 
   if (Health > 1)
-      color = HealthBar.Color(20/(Health-1), (Health-1)*4, 0);
+    color = HealthBar.Color(20/(Health-1), (Health-1)*4, 0);
 
   for (int x = 0; x < Health;x++)
   {
