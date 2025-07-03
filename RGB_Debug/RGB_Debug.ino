@@ -61,6 +61,7 @@ void setup() {
   Screen.drawBox(2, 2, 100, 50);
   Screen.sendBuffer();
 
+  SPI.begin();
   mfrc522.PCD_Init();
 }
 
