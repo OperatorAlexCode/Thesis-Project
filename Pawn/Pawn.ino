@@ -84,11 +84,13 @@ void setup() {
   GamePawn.addCharacteristic(HealthCharacteristic);
   GamePawn.addCharacteristic(AddItemCharacteristic);
   GamePawn.addCharacteristic(UseItemCharacteristic);
+  GamePawn.addCharacteristic(Position);
 
   BLE.addService(GamePawn);
   
   AddItemCharacteristic.setEventHandler(BLEWritten,AddItemEvent);
   UseItemCharacteristic.setEventHandler(BLEWritten,UseItemEvent);
+  Position.setEventHandler(BLEWritten,PositionChangeEvent);
 
   // start advertising
   BLE.advertise();
@@ -237,7 +239,18 @@ void UpdateDisplay()
 {
   Serial.println("Updating Display");
   Screen.clearBuffer();
-  Screen.drawStr(0, 10, (String("Player ")+String(PlayerId)).c_str());
+
+  int xPos;
+  int yPos;
+
+  GetPosition(Position.value(), xPos, yPos);
+
+  String string = String(PlayerId) + String("|");
+  string += String("x:") + String(xPos) + String(",y:") + String(yPos);
+
+  //Screen.drawStr(0, 10, (String("Player ")+String(PlayerId)).c_str());
+
+  Screen.drawStr(0, 10, string.c_str());
   /*for (int x = 0; x < itemsInInventory; x++)
   {
     int difference = 42-32;
@@ -331,12 +344,6 @@ void UpdateHealthBar()
   HealthBar.show();
 }
 
-void Increment()
-{
-  itemsInInventory++;
-  itemsInInventory = itemsInInventory % (maxItems+1);
-}
-
 void AddItemEvent(BLEDevice central, BLECharacteristic characteristic) {
   //Serial.print("Adding Item: ");
   Serial.println(AddItemCharacteristic.value());
@@ -350,6 +357,10 @@ void UseItemEvent(BLEDevice central, BLECharacteristic characteristic) {
   Serial.println(UseItemCharacteristic.value());
   UseItem(UseItemCharacteristic.value());
   UpdateHealthBar();
+  UpdateDisplay();
+}
+
+void PositionChangeEvent(BLEDevice central, BLECharacteristic characteristic) {
   UpdateDisplay();
 }
 
@@ -414,4 +425,9 @@ int GetArrayLength(int arraySize, int byteSize)
 void ChangeHealth(int change) {
   Health = constrain(Health+change,0,MaxHealth);
   HealthCharacteristic.writeValue(Health);
+}
+
+void GetPosition(byte value, int &x, int &y) {
+  x = (value & 0b11110000) >> 4;
+  y = value & 0b00001111;
 }

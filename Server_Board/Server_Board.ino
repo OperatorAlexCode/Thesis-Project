@@ -204,8 +204,8 @@ void loop() {
   BLEDevice pawn2;
 
   Serial.println("Scanning for board");
-  if (!ConnectToPeripheral(ScreenControllerId,board))
-    return;
+  //if (!ConnectToPeripheral(ScreenControllerId,board))
+  //  return;
   
   Serial.println("Scanning for pawn 1");
   if (!ConnectToPeripheral(Player1Id,pawn1))
@@ -214,10 +214,10 @@ void loop() {
   Serial.println("All devices connected");
 
   // Main game loop
-  if (board && pawn1 /*&& pawn2*/)
+  if (/*board &&*/ pawn1 /*&& pawn2*/)
   {
     //Serial.println("Initializing characteristics");
-    BLECharacteristic boardInput = board.characteristic(ScreenControllerId,0);
+    //BLECharacteristic boardInput = board.characteristic(ScreenControllerId,0);
     
     BLECharacteristic scannedTag;
     BLECharacteristic disableScanner;
@@ -225,6 +225,7 @@ void loop() {
     BLECharacteristic health;
     BLECharacteristic addItem;
     BLECharacteristic useItem;
+    BLECharacteristic position;
     
     switch (PlayerTurn) {
           case 1:
@@ -234,6 +235,8 @@ void loop() {
             health = pawn1.characteristic(Player1Id, 3);
             addItem = pawn1.characteristic(Player1Id, 4);
             useItem = pawn1.characteristic(Player1Id, 5);
+            position = pawn1.characteristic(Player1Id, 6);
+            position.writeValue((byte)(Player1PosX << 4 + Player1PosY));
             break;
           case 2:
             scannedTag = pawn2.characteristic(Player2Id, 0);
@@ -242,6 +245,8 @@ void loop() {
             health = pawn2.characteristic(Player2Id, 3);
             addItem = pawn2.characteristic(Player2Id, 4);
             useItem = pawn2.characteristic(Player2Id, 5);
+            position = pawn2.characteristic(Player2Id, 6);
+            position.writeValue((byte)(Player2PosX << 4 + Player2PosY));
             break;
         }
 
@@ -250,86 +255,88 @@ void loop() {
     scannedTag.subscribe();
     callback.subscribe();
 
-    UpdateBoard(boardInput);
+    //UpdateBoard(boardInput);
 
     Serial.println(String("Player ")+String(PlayerTurn)+String("'s turn"));
 
-    while (board.connected() && pawn1.connected() /*&& pawn2.connected()*/ && !GameFinished)
+    while (/*board.connected() &&*/ pawn1.connected() /*&& pawn2.connected()*/ && !GameFinished)
     {
       String keypadOutput = GetKeypadOutputString();
 
       switch(CurrentPhase) {
         case TurnPhase::Moving:
-          if (scannedTag.valueUpdated())
-          {
-            //Serial.print("Pawn moved to: ");
-            //String value = String(readTag.value());
-            //readTag.readValue(value);
-            String value = reinterpret_cast<const char *>(scannedTag.value());
+            if (scannedTag.valueUpdated())
+            {
+              //Serial.print("Pawn moved to: ");
+              //String value = String(readTag.value());
+              //readTag.readValue(value);
+              String value = reinterpret_cast<const char *>(scannedTag.value());
 
-            if (value.length() > 14)
-              value = value.substring(0,14);
+              if (value.length() > 14)
+                value = value.substring(0,14);
 
-            //Serial.println(value);
+              //Serial.println(value);
 
-            // Move to room if it is adjacent and is able to be entered (i.e not locked or such)
-            if (IsAdjacent(value, PlayerTurn, false))
+              // Move to room if it is adjacent and is able to be entered (i.e not locked or such)
+              if (IsAdjacent(value, PlayerTurn, false))
+              {
+                int posX = 0;
+                int posY = 0;
+
+                GetPosition(value, posX, posY);
+
+                switch (PlayerTurn)
+                {
+                  case 1:
+                    Player1PosX = posX;
+                    Player1PosY = posY;
+                    break;
+                  case 2:
+                    Player2PosX = posX;
+                    Player2PosY = posY;
+                    break;
+                }
+
+                position.writeValue((byte)((posX << 4) + posY));
+
+                Serial.print("Moving to: ");
+                Serial.println(RoomNames[matrix[posX][posY]]);
+                //Serial.println(String(" | ") + String(posX) + ", " + String(posY));
+                CurrentPhase = TurnPhase::InRoom;
+                ActionsLeft = ActionsPerTurn;
+                disableScanner.writeValue((byte)1);
+                Serial.println(String("Actions left: ")+String(ActionsLeft) +String(", What do you want to do?"));
+              }
+
+              else
+                Serial.println("Room is not Adjacent!");
+            }
+            else if (keypadOutput == "*")
             {
               int posX = 0;
               int posY = 0;
 
-              GetPosition(value, posX, posY);
-
               switch (PlayerTurn)
-              {
-                case 1:
-                  Player1PosX = posX;
-                  Player1PosY = posY;
-                  break;
-                case 2:
-                  Player2PosX = posX;
-                  Player2PosY = posY;
-                  break;
-              }
+                {
+                  case 1:
+                    posX = Player1PosX;
+                    posY = Player1PosY;
+                    break;
+                  case 2:
+                    posX = Player2PosX;
+                    posY = Player2PosY;
+                    break;
+                }
 
-              Serial.print("Moving to: ");
+              Serial.print("Staying in: ");
               Serial.println(RoomNames[matrix[posX][posY]]);
               //Serial.println(String(" | ") + String(posX) + ", " + String(posY));
               CurrentPhase = TurnPhase::InRoom;
               ActionsLeft = ActionsPerTurn;
               disableScanner.writeValue((byte)1);
-              Serial.println(String("Actions left: ")+String(ActionsLeft) +String(", What do you want to do?"));
+              Serial.println("What do you want to do?");
+              Serial.println(String("Actions left: ")+String(ActionsLeft));
             }
-
-            else
-              Serial.println("Room is not Adjacent!");
-          }
-          else if (keypadOutput == "*")
-          {
-            int posX = 0;
-            int posY = 0;
-
-            switch (PlayerTurn)
-              {
-                case 1:
-                  posX = Player1PosX;
-                  posY = Player1PosY;
-                  break;
-                case 2:
-                  posX = Player2PosX;
-                  posY = Player2PosY;
-                  break;
-              }
-
-            Serial.print("Staying in: ");
-            Serial.println(RoomNames[matrix[posX][posY]]);
-            //Serial.println(String(" | ") + String(posX) + ", " + String(posY));
-            CurrentPhase = TurnPhase::InRoom;
-            ActionsLeft = ActionsPerTurn;
-            disableScanner.writeValue((byte)1);
-            Serial.println("What do you want to do?");
-            Serial.println(String("Actions left: ")+String(ActionsLeft));
-          }
           break;
         case TurnPhase::InRoom:
           if (keypadOutput != "")
@@ -422,7 +429,7 @@ void loop() {
               
               if (ActionsLeft == 0)
               {
-                Serial.println("Next Players turn");
+                Serial.println("Next turn");
                 CurrentPhase = TurnPhase::NextTurn;
               }
               else
@@ -440,34 +447,38 @@ void loop() {
           }
           break;
         case TurnPhase::NextTurn:
-        /*if (PlayerTurn = 2)
-          PlayerTurn = 1;
-        else
-          PlayerTurn++;*/
+          /*if (PlayerTurn = 2)
+            PlayerTurn = 1;
+          else
+            PlayerTurn++;*/
 
-        switch (PlayerTurn) {
-          case 1:
-            scannedTag = pawn1.characteristic(Player1Id, 0);
-            disableScanner = pawn1.characteristic(Player1Id, 1);
-            callback = pawn1.characteristic(Player1Id, 2);
-            health = pawn1.characteristic(Player1Id, 3);
-            addItem = pawn1.characteristic(Player1Id, 4);
-            useItem = pawn1.characteristic(Player1Id, 5);
-            break;
-          case 2:
-            scannedTag = pawn2.characteristic(Player2Id, 0);
-            disableScanner = pawn2.characteristic(Player2Id, 1);
-            callback = pawn2.characteristic(Player2Id, 2);
-            health = pawn2.characteristic(Player2Id, 3);
-            addItem = pawn2.characteristic(Player2Id, 4);
-            useItem = pawn2.characteristic(Player2Id, 5);
-            break;
-        }
-        
-        ActionsLeft = ActionsPerTurn;
-        disableScanner.writeValue((byte)0);
-        Serial.println("Where do you want to move?");
-        CurrentPhase = TurnPhase::Moving;
+          switch (PlayerTurn) {
+            case 1:
+              scannedTag = pawn1.characteristic(Player1Id, 0);
+              disableScanner = pawn1.characteristic(Player1Id, 1);
+              callback = pawn1.characteristic(Player1Id, 2);
+              health = pawn1.characteristic(Player1Id, 3);
+              addItem = pawn1.characteristic(Player1Id, 4);
+              useItem = pawn1.characteristic(Player1Id, 5);
+              position = pawn1.characteristic(Player1Id, 6);
+              position.writeValue((byte)((Player1PosX << 4) + Player1PosY));
+              break;
+            case 2:
+              scannedTag = pawn2.characteristic(Player2Id, 0);
+              disableScanner = pawn2.characteristic(Player2Id, 1);
+              callback = pawn2.characteristic(Player2Id, 2);
+              health = pawn2.characteristic(Player2Id, 3);
+              addItem = pawn2.characteristic(Player2Id, 4);
+              useItem = pawn2.characteristic(Player2Id, 5);
+              position = pawn2.characteristic(Player2Id, 6);
+              position.writeValue((byte)((Player2PosX << 4) + Player2PosY));
+              break;
+          }
+          
+          ActionsLeft = ActionsPerTurn;
+          disableScanner.writeValue((byte)0);
+          Serial.println("Where do you want to move?");
+          CurrentPhase = TurnPhase::Moving;
         break;
       }
 
@@ -497,7 +508,7 @@ void loop() {
   if (pawn2)
     pawn2.disconnect();
 
-  BLE.scanForUuid(ScreenControllerId);
+  //BLE.scanForUuid(ScreenControllerId);
 
   //Stops game once finished
   while (GameFinished);
