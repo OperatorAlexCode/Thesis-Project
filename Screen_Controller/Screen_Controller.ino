@@ -226,7 +226,7 @@ void SetTile(int tileToSet, Room room, RoomState state) {
       break;
   }
 
-  switch (state) {
+  /*switch (state) {
     case RoomState::Highlighted:
       for (int x = 0; x < 3; x++)
         Screen.drawFrame(x, x, 128-x*2, 128-x*2);
@@ -235,7 +235,7 @@ void SetTile(int tileToSet, Room room, RoomState state) {
     case RoomState::Locked:
       //Screen.drawUTF8(0, 10, “🔒”);
       break;
-  }
+  }*/
 
   Screen.sendBuffer();
 

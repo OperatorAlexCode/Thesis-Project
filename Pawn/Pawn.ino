@@ -22,9 +22,12 @@ enum Item
 BLEService GamePawn("10e62b35-1ed8-4149-aeca-4df2e8b24132");
 
 BLEStringCharacteristic RfidId(GamePawn.uuid(), BLERead | BLEWrite | BLENotify, 14);
+BLEBoolCharacteristic DisableScanner(GamePawn.uuid(), BLERead | BLEWrite | BLENotify);
+BLEBoolCharacteristic CallbackResponse(GamePawn.uuid(), BLERead | BLEWrite | BLENotify);
 BLEIntCharacteristic HealthCharacteristic(GamePawn.uuid(), BLERead | BLEWrite | BLENotify);
 BLEIntCharacteristic AddItemCharacteristic(GamePawn.uuid(), BLERead | BLEWrite);
 BLEIntCharacteristic UseItemCharacteristic(GamePawn.uuid(), BLERead | BLEWrite);
+BLEByteCharacteristic Position(GamePawn.uuid(), BLERead | BLEWrite);
 
 MFRC522DriverPinSimple ss_pin(5);
 MFRC522DriverSPI driver{ss_pin}; // Create SPI driver
@@ -72,14 +75,18 @@ void setup() {
   BLE.setLocalName(name.c_str());
   BLE.setAdvertisedService(GamePawn);
 
+  HealthCharacteristic.writeValue(Health);
+  DisableScanner.writeValue(false);
+
   GamePawn.addCharacteristic(RfidId);
+  GamePawn.addCharacteristic(DisableScanner);
+  GamePawn.addCharacteristic(CallbackResponse);
   GamePawn.addCharacteristic(HealthCharacteristic);
   GamePawn.addCharacteristic(AddItemCharacteristic);
   GamePawn.addCharacteristic(UseItemCharacteristic);
 
   BLE.addService(GamePawn);
-  HealthCharacteristic.writeValue(Health);
-
+  
   AddItemCharacteristic.setEventHandler(BLEWritten,AddItemEvent);
   UseItemCharacteristic.setEventHandler(BLEWritten,UseItemEvent);
 
@@ -109,9 +116,17 @@ void loop() {
     {
       if(isNewCard()) {
         Serial.println("Reading tag");
+        Serial.println("Id: " + GetId());
+        Serial.println(String("Scanner status: ") + String(DisableScanner.value()));
 
-        RfidId.writeValue(GetId());
-        Serial.println("Id: " + RfidId.value());
+        if (!DisableScanner.value())
+        {
+          Serial.println("Sending tag");
+          RfidId.writeValue(GetId());
+        }
+
+        else
+          Serial.println("Scanner disabled");
       }
 
       /*if (UseItemCharacteristic.written())
@@ -222,7 +237,7 @@ void UpdateDisplay()
 {
   Serial.println("Updating Display");
   Screen.clearBuffer();
-  Screen.drawStr(0, 10, "Player 1");
+  Screen.drawStr(0, 10, (String("Player ")+String(PlayerId)).c_str());
   /*for (int x = 0; x < itemsInInventory; x++)
   {
     int difference = 42-32;
@@ -254,7 +269,7 @@ void UpdateDisplay()
   }
 
   int marginTop = 1, marginSide = 1;
-  int width = 10, height = 14;
+  int width = 8, height = 14;
 
   for (int x = 0; x < Health; x++)
   {
@@ -347,9 +362,12 @@ void AddItem(Item itemToAdd)
         {
           Inventory[x] = (Item)itemToAdd;
           itemsInInventory++;
+          CallbackResponse.writeValue(true);
           break;
         }
       }
+  
+  CallbackResponse.writeValue(false);
 }
 
 void AddItem(int itemToAdd)
@@ -384,6 +402,8 @@ void UseItem(int itemIndex)
     Inventory[itemIndex] = Item::None;
     itemsInInventory--;
   }
+
+  CallbackResponse.writeValue(itemUsed);
 }
 
 int GetArrayLength(int arraySize, int byteSize)
