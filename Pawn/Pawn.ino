@@ -20,6 +20,7 @@ enum Item
 };
 
 BLEService GamePawn("10e62b35-1ed8-4149-aeca-4df2e8b24132");
+//BLEService GamePawn("d2d5dba7-9225-46b5-ab2e-ddef6cf090c8");
 
 BLEStringCharacteristic RfidId(GamePawn.uuid(), BLERead | BLEWrite | BLENotify, 14);
 BLEBoolCharacteristic DisableScanner(GamePawn.uuid(), BLERead | BLEWrite | BLENotify);

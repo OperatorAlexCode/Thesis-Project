@@ -9,18 +9,6 @@
 //#include <SoftwareWire.h>
 #define SPEAKER 6
 
-/*class State {
-  public:
-  void Enter() {
-  }
-
-  void Update() {
-  }
-
-  void Exit() {
-  }
-}*/
-
 enum Room {
   Bunks = 0,
   AiCore = 1,
@@ -78,6 +66,12 @@ const char* RoomNames[] {
   Storage = "Storage"
 };*/
 
+enum RoomState {
+  Nothing,
+  Locked,
+  GasLeak
+};
+
 enum Item {
   None,
   Medkit,
@@ -97,22 +91,17 @@ const char* Player2Id = "d2d5dba7-9225-46b5-ab2e-ddef6cf090c8";
 const char* ScreenControllerId = "646c3367-5f9c-4b50-bc95-4701b2d8ba50";
 const int SIZE = 4;
 
-/*String Ids[SIZE][SIZE] = {
-  { String("53123f2aa00001"), String("placeholder001"), String("534c4a2aa00001"), String("ff0ff20d5c0000") },
-  { String("53751c2aa00001"), String("536e242aa00001"), String("ff0f820c5c0000"), String("ff0ff40d5c0000") },
-  { String("53850f2aa00001"), String("53652e2aa00001"), String("ff0ff10d5c0000"), String("5399132aa00001") },
-  { String("53764f2aa00001"), String("5331452aa00001"), String("534d182aa00001"), String("ff0ff30d5c0000") }
-};*/
-
 String Ids[SIZE][SIZE] = {
   { String("53123f2aa00001"), String("53751c2aa00001"), String("53850f2aa00001"), String("53764f2aa00001") },
-  { String("placeholder001"), String("536e242aa00001"), String("53652e2aa00001"), String("5331452aa00001") },
+  { String("ff0fc8105c0000"), String("536e242aa00001"), String("53652e2aa00001"), String("5331452aa00001") },
   { String("534c4a2aa00001"), String("ff0f820c5c0000"), String("ff0ff10d5c0000"), String("534d182aa00001") },
   { String("ff0ff20d5c0000"), String("ff0ff40d5c0000"), String("5399132aa00001"), String("ff0ff30d5c0000") }
 };
 
 int matrix[SIZE][SIZE];
 int numbers[SIZE * SIZE - 2]; // reservered for bunks/aiCore
+int roomStates[SIZE][SIZE];
+bool Discovered[SIZE][SIZE];
 
 int Player1PosX = 0, Player1PosY = 0;
 int Player2PosX = 0, Player2PosY = 0;
@@ -133,6 +122,9 @@ String KeypadOutput = "";
 int PlayerTurn = 1;
 
 bool GameFinished = false;
+
+int MaxClosedDoors = 4;
+int MaxGasleaks = 2;
 
 void shuffleArray(int *array, int n) {
   for (int i = n - 1; i > 0; --i) {
@@ -170,13 +162,13 @@ void assignArray() {
   }
 
   // Print the matrix
-  for (int i = 0; i < SIZE; ++i) {
+  /*for (int i = 0; i < SIZE; ++i) {
     for (int j = 0; j < SIZE; ++j) {
       Serial.print(matrix[i][j]);
       Serial.print("\t");
     }
     Serial.println();
-  }
+  }*/
 }
 
 void setup() {
@@ -204,8 +196,8 @@ void loop() {
   BLEDevice pawn2;
 
   Serial.println("Scanning for board");
-  //if (!ConnectToPeripheral(ScreenControllerId,board))
-  //  return;
+  if (!ConnectToPeripheral(ScreenControllerId,board))
+    return;
   
   Serial.println("Scanning for pawn 1");
   if (!ConnectToPeripheral(Player1Id,pawn1))
@@ -214,10 +206,11 @@ void loop() {
   Serial.println("All devices connected");
 
   // Main game loop
-  if (/*board &&*/ pawn1 /*&& pawn2*/)
+  if (board && pawn1 /*&& pawn2*/)
   {
     //Serial.println("Initializing characteristics");
-    //BLECharacteristic boardInput = board.characteristic(ScreenControllerId,0);
+    BLECharacteristic boardSetRoom = board.characteristic(ScreenControllerId,0);
+    BLECharacteristic boardSetState = board.characteristic(ScreenControllerId,1);
     
     BLECharacteristic scannedTag;
     BLECharacteristic disableScanner;
@@ -255,11 +248,24 @@ void loop() {
     scannedTag.subscribe();
     callback.subscribe();
 
-    //UpdateBoard(boardInput);
+    UpdateBoard(boardSetRoom);
+
+    // Test code
+    //byte value = 5 << 4;
+    //value += (int)RoomState::Locked;
+    byte value = 0b01010001;
+    boardSetState.writeValue(value);
+    delay(100);
+    //value = 10 << 4;
+    //value += (int)RoomState::GasLeak;
+    value = 0b10100010;
+    boardSetState.writeValue(value);
+    delay(100);
+    // Test code ^
 
     Serial.println(String("Player ")+String(PlayerTurn)+String("'s turn"));
 
-    while (/*board.connected() &&*/ pawn1.connected() /*&& pawn2.connected()*/ && !GameFinished)
+    while (board.connected() && pawn1.connected() /*&& pawn2.connected()*/ && !GameFinished)
     {
       String keypadOutput = GetKeypadOutputString();
 
@@ -594,9 +600,22 @@ bool GetPosition(String id, int &xOut, int &yOut) {
   return false;
 }
 
-/*Room GetRoom(int x, int y) {
-  return matrix[x][y];
-}*/
+bool Getposition(Room room, int &xOut, int &yOut) {
+  for (int x = 0; x < SIZE; x++)
+    for (int y = 0; y < SIZE; y++)
+      if (matrix[x][y] == (int)room)
+      {
+        xOut = x;
+        yOut = y;
+        return true;
+      }
+  
+  return false;
+}
+
+Room GetRoom(int x, int y) {
+  return (Room)matrix[x][y];
+}
 
 int GetKeypadOutput() {
   int output = 0x00;
@@ -705,20 +724,8 @@ void UpdateBoard(BLECharacteristic screens) {
       {
         byte value = (y*4 + x) << 4;
         value += matrix[x][y];
-        //Serial.print(x);
-        //Serial.print(",");
-        //Serial.print(y);
-        //Serial.print(" | ");
-        //Serial.print(y*x + x);
-        //Serial.print(" | ");
-        
-        //for (int z = 0; z < 8; z++)
-        //  Serial.print(bitRead(value,z));
-        
-        //Serial.println("");
-        //Serial.println(value,BIN);
         screens.writeValue(value);
-        delay(200);
+        delay(100);
       }
 }
 

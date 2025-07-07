@@ -37,12 +37,12 @@ enum Room
 
 enum RoomState {
   None,
-  Highlighted,
-  Locked
+  Locked,
+  GasLeak
 };
 
 Room RoomSprites[16];
-//RoomState RoomStates[16];
+//oomState RoomStates[16];
 
 //SoftwareWire Wire1(8,7);
 //SoftwareWire Wire2(6,5);
@@ -88,9 +88,11 @@ void setup() {
   BLE.setLocalName("Screen Controller");
   BLE.setAdvertisedService(ScreenController);
 
-  SetTileRoom.setEventHandler(BLEWritten,WriteToScreen);
+  SetTileRoom.setEventHandler(BLEWritten,SetTileRoomEvent);
+  SetTileState.setEventHandler(BLEWritten,SetTileStateEvent);
 
   ScreenController.addCharacteristic(SetTileRoom);
+  ScreenController.addCharacteristic(SetTileState);
 
   BLE.addService(ScreenController);
 
@@ -113,30 +115,56 @@ void GetValues(byte recievedValue, byte &value, byte &index) {
   index = (0b11110000 & recievedValue) >> 4;
 }
 
-void WriteToScreen(BLEDevice central, BLECharacteristic characteristic) {
+void SetTileRoomEvent(BLEDevice central, BLECharacteristic characteristic) {
   Serial.print("Recieved value:");
   for (int x = 0; x < 8; x++)
     Serial.print(bitRead(SetTileRoom.value(),x));
 
-  Serial.println("");
+  Serial.println(" | Set Room");
 
   byte value /*= 0b00001111 & SetTileRoom*/;
   byte index /*= (0b11110000 & SetTileRoom) >> 4*/;
 
   GetValues(SetTileRoom.value(),value,index);
 
-  for (int x = 0; x < 8; x++)
+  for (int x = 0; x < 4; x++)
     Serial.print(bitRead(value,x));
   
   Serial.print(" | ");
   
-  for (int x = 0; x < 8; x++)
+  for (int x = 0; x < 4; x++)
     Serial.print(bitRead(index,x));
 
   Serial.println("");
 
   if (index < 16 && value < 16)
     SetTile(index,(Room)value);
+}
+
+void SetTileStateEvent(BLEDevice central, BLECharacteristic characteristic) {
+  Serial.print("Recieved value:");
+  for (int x = 0; x < 8; x++)
+    Serial.print(bitRead(SetTileState.value(),x));
+
+  Serial.println(" | Set State");
+
+  byte value /*= 0b00001111 & SetTileRoom*/;
+  byte index /*= (0b11110000 & SetTileRoom) >> 4*/;
+
+  GetValues(SetTileState.value(),value,index);
+
+  for (int x = 0; x < 4; x++)
+    Serial.print(bitRead(value,x));
+  
+  Serial.print(" | ");
+  
+  for (int x = 0; x < 4; x++)
+    Serial.print(bitRead(index,x));
+
+  Serial.println("");
+
+  if (index < 16)
+    SetTile(index, RoomSprites[index],(RoomState)value);
 }
 
 void Clear() {
@@ -226,16 +254,36 @@ void SetTile(int tileToSet, Room room, RoomState state) {
       break;
   }
 
-  /*switch (state) {
-    case RoomState::Highlighted:
+  switch (state) {
+    case RoomState::Locked:
       for (int x = 0; x < 3; x++)
         Screen.drawFrame(x, x, 128-x*2, 128-x*2);
-
-      break;
-    case RoomState::Locked:
+      
       //Screen.drawUTF8(0, 10, “🔒”);
       break;
-  }*/
+    case RoomState::GasLeak:
+      int circleradius = 8;
+      int circleCenter = circleradius+1;
+
+      Screen.drawDisc(0,0,circleradius);
+      Screen.drawDisc(127,0,circleradius);
+      Screen.drawDisc(0,127,circleradius);
+      Screen.drawDisc(127,127,circleradius);
+
+      for (int x = 0; x < 8; x++)
+      {
+        Screen.drawDisc(x*16, 0, circleradius);
+        Screen.drawDisc(x*16, 127, circleradius);
+        Screen.drawDisc(0, x*16, circleradius);
+        Screen.drawDisc(127, x*16, circleradius);
+      }
+
+      //Screen.drawDisc(circleCenter,circleCenter,circleradius);
+      //Screen.drawDisc(128-circleCenter,circleCenter,circleradius);
+      //Screen.drawDisc(circleCenter,128-circleCenter,circleradius);
+      //Screen.drawDisc(128-circleCenter,128-circleCenter,circleradius);
+      break;
+  }
 
   Screen.sendBuffer();
 
@@ -245,7 +293,7 @@ void SetTile(int tileToSet, Room room, RoomState state) {
   else
     Multi.closeChannel(tileToSet%8);
 
-  RoomSprites[tileToSet] = (Room)room;
+  RoomSprites[tileToSet] = room;
 
-  delay(10);
+  //delay(10);
 }
