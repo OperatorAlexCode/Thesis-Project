@@ -36,13 +36,13 @@ enum Room
 };
 
 enum RoomState {
-  None,
+  Normal,
   Locked,
   GasLeak
 };
 
 Room RoomSprites[16];
-//oomState RoomStates[16];
+RoomState RoomStates[16];
 
 //SoftwareWire Wire1(8,7);
 //SoftwareWire Wire2(6,5);
@@ -80,7 +80,8 @@ void setup() {
   Multi.openAll();
   Multi2.openAll();
   Screen.begin();
-  Screen.setFont(u8g2_font_7x14B_tr);
+  Screen.setFont(u8g2_font_8x13_te);
+  Screen.enableUTF8Print();
   Screen.clearBuffer();
   Multi.closeAll();
   Multi2.closeAll();
@@ -137,7 +138,7 @@ void SetTileRoomEvent(BLEDevice central, BLECharacteristic characteristic) {
 
   Serial.println("");
 
-  if (index < 16 && value < 16)
+  if (index < 16 && value < 16 && RoomSprites[index] != value)
     SetTile(index,(Room)value);
 }
 
@@ -163,7 +164,7 @@ void SetTileStateEvent(BLEDevice central, BLECharacteristic characteristic) {
 
   Serial.println("");
 
-  if (index < 16)
+  if (index < 16 && RoomStates[index] != (RoomState)value)
     SetTile(index, RoomSprites[index],(RoomState)value);
 }
 
@@ -186,7 +187,7 @@ void Clear() {
 }
 
 void SetTile(int tileToSet, Room room) {
-  SetTile(tileToSet, room, RoomState::None);
+  SetTile(tileToSet, room, RoomState::Normal);
 }
 
 void SetTile(int tileToSet, Room room, RoomState state) {
@@ -256,10 +257,13 @@ void SetTile(int tileToSet, Room room, RoomState state) {
 
   switch (state) {
     case RoomState::Locked:
-      for (int x = 0; x < 3; x++)
+      for (int x = 0; x < 6; x++)
         Screen.drawFrame(x, x, 128-x*2, 128-x*2);
       
-      //Screen.drawUTF8(0, 10, “🔒”);
+      //Screen.drawUTF8(2, 2, "🔒");
+      //Screen.drawUTF8(117, 2, "🔒");
+      //Screen.drawUTF8(2, 117, "🔒");
+      //Screen.drawUTF8(117, 117, "🔒");
       break;
     case RoomState::GasLeak:
       int circleradius = 8;
@@ -294,6 +298,7 @@ void SetTile(int tileToSet, Room room, RoomState state) {
     Multi.closeChannel(tileToSet%8);
 
   RoomSprites[tileToSet] = room;
+  RoomStates[tileToSet] = state;
 
   //delay(10);
 }

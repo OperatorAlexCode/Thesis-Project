@@ -16,7 +16,7 @@ enum Room {
   Reactor = 3,
   Medbay = 4,
   CargoHold = 5,
-  Armory = 6,
+  Security = 6,
   LifeSupport = 7,
   RecyclingCenter = 8,
   RecreationalCenter = 9,
@@ -35,7 +35,7 @@ const char* RoomNames[] {
   "Reactor",
   "Medbay",
   "Cargo Hold",
-  "Armory",
+  "Security",
   "Life Support",
   "Recycling Center",
   "Recreational Center",
@@ -54,7 +54,7 @@ const char* RoomNames[] {
   Reactor = "Reactor",
   Medbay = "Medbay",
   CargoHold = "Cargo Hold",
-  Armory = "Armory",
+  Security = "Security",
   LifeSupport = "Life Support",
   RecyclingCenter = "Recycling Center",
   RecreationalCenter = "Recreational Center",
@@ -67,7 +67,7 @@ const char* RoomNames[] {
 };*/
 
 enum RoomState {
-  Nothing,
+  Normal,
   Locked,
   GasLeak
 };
@@ -75,15 +75,54 @@ enum RoomState {
 enum Item {
   None,
   Medkit,
-  Beer
+  Beer,
+  Keycard
 };
 
 enum TurnPhase {
   Moving,
+  EnteringRoom,
   InRoom,
+  PassTime,
+  ActionPerformed,
   UseItem,
-  NextAction,
-  NextTurn
+  NextTurn,
+  AiTurn
+};
+
+enum AiChoice {
+  CloseDoor,
+  OpenDoor,
+  CauseGasLeak,
+  SealGasLeak
+};
+
+int AiChoiceTable[] = {
+  45,
+  35,
+  15,
+  5
+};
+
+int ItemOdds[] = {
+  40,
+  20,
+  30,
+  10
+};
+
+int ItemOddsMedbay[] = {
+  30,
+  60,
+  10,
+  0
+};
+
+int ItemOddsSecurity[] = {
+  30,
+  5,
+  15,
+  40
 };
 
 const char* Player1Id = "10e62b35-1ed8-4149-aeca-4df2e8b24132";
@@ -107,7 +146,7 @@ int Player1PosX = 0, Player1PosY = 0;
 int Player2PosX = 0, Player2PosY = 0;
 
 int ActionsPerTurn = 2;
-int ActionsLeft;
+int ActionsLeft = 2;
 TurnPhase CurrentPhase = TurnPhase::Moving;
 
 String KeypadOutput = "";
@@ -122,9 +161,13 @@ String KeypadOutput = "";
 int PlayerTurn = 1;
 
 bool GameFinished = false;
+bool GameStarted = false;
+bool FogOfWar = false;
 
-int MaxClosedDoors = 4;
-int MaxGasleaks = 2;
+int ClosedDoors = 0;
+int GasLeaks = 0;
+int MaxClosedDoors = 6;
+int MaxGasLeaks = 3;
 
 void shuffleArray(int *array, int n) {
   for (int i = n - 1; i > 0; --i) {
@@ -184,9 +227,13 @@ void setup() {
     while (1);
   }
 
-  Serial.println("Server initialized. Starting Game");
+  Serial.println("Server initialized");
+
+  Discovered[0][0] = true;
 
   assignArray();
+
+  //CurrentPhase = TurnPhase::NextTurn;
 }
 
 void loop() {
@@ -219,151 +266,192 @@ void loop() {
     BLECharacteristic addItem;
     BLECharacteristic useItem;
     BLECharacteristic position;
-    
-    switch (PlayerTurn) {
-          case 1:
-            scannedTag = pawn1.characteristic(Player1Id, 0);
-            disableScanner = pawn1.characteristic(Player1Id, 1);
-            callback = pawn1.characteristic(Player1Id, 2);
-            health = pawn1.characteristic(Player1Id, 3);
-            addItem = pawn1.characteristic(Player1Id, 4);
-            useItem = pawn1.characteristic(Player1Id, 5);
-            position = pawn1.characteristic(Player1Id, 6);
-            position.writeValue((byte)(Player1PosX << 4 + Player1PosY));
-            break;
-          case 2:
-            scannedTag = pawn2.characteristic(Player2Id, 0);
-            disableScanner = pawn2.characteristic(Player2Id, 1);
-            callback = pawn2.characteristic(Player2Id, 2);
-            health = pawn2.characteristic(Player2Id, 3);
-            addItem = pawn2.characteristic(Player2Id, 4);
-            useItem = pawn2.characteristic(Player2Id, 5);
-            position = pawn2.characteristic(Player2Id, 6);
-            position.writeValue((byte)(Player2PosX << 4 + Player2PosY));
-            break;
-        }
+    BLECharacteristic inventory;
+    BLECharacteristic takeDamage;
 
-    //SetScreensTest(input);
+    switch (PlayerTurn)
+    {
+      case 1:
+        scannedTag = pawn1.characteristic(Player1Id, 0);
+        disableScanner = pawn1.characteristic(Player1Id, 1);
+        callback = pawn1.characteristic(Player1Id, 2);
+        health = pawn1.characteristic(Player1Id, 3);
+        addItem = pawn1.characteristic(Player1Id, 4);
+        useItem = pawn1.characteristic(Player1Id, 5);
+        position = pawn1.characteristic(Player1Id, 6);
+        inventory = pawn1.characteristic(Player1Id, 7);
+        takeDamage = pawn1.characteristic(Player1Id, 8);
+        position.writeValue((byte)((Player1PosX << 4) + Player1PosY));
+        break;
+      case 2:
+        scannedTag = pawn2.characteristic(Player2Id, 0);
+        disableScanner = pawn2.characteristic(Player2Id, 1);
+        callback = pawn2.characteristic(Player2Id, 2);
+        health = pawn2.characteristic(Player2Id, 3);
+        addItem = pawn2.characteristic(Player2Id, 4);
+        useItem = pawn2.characteristic(Player2Id, 5);
+        position = pawn2.characteristic(Player2Id, 6);
+        inventory = pawn2.characteristic(Player2Id, 7);
+        takeDamage = pawn2.characteristic(Player2Id, 8);
+        position.writeValue((byte)((Player2PosX << 4) + Player2PosY));
+        break;
+    }
 
     scannedTag.subscribe();
     callback.subscribe();
+    health.subscribe();
 
-    UpdateBoard(boardSetRoom);
+    UpdateBoard(boardSetRoom, boardSetState);
 
-    // Test code
-    //byte value = 5 << 4;
-    //value += (int)RoomState::Locked;
-    byte value = 0b01010001;
-    boardSetState.writeValue(value);
-    delay(100);
-    //value = 10 << 4;
-    //value += (int)RoomState::GasLeak;
-    value = 0b10100010;
-    boardSetState.writeValue(value);
-    delay(100);
-    // Test code ^
+    //Serial.println(String("Player ")+String(PlayerTurn)+String("'s turn"));
 
-    Serial.println(String("Player ")+String(PlayerTurn)+String("'s turn"));
+    if (!GameStarted)
+    {
+      Serial.println("Game Started");
+      GameStarted = true;
+      //roomStates[0][1] = RoomState::GasLeak;
+      //roomStates[1][0] = RoomState::GasLeak;
+      //UpdateBoard(boardSetRoom, boardSetState);
+    }
+
+    if (CurrentPhase == TurnPhase::Moving)
+    {
+      disableScanner.writeValue((byte)0);
+      Serial.println("Where do you want to move?");
+    }
+    
+    //byte healthTest;
+    //health.readValue(healthTest);
+    //Serial.println(String("Health left: ") + String((int)GetValue(health)));
 
     while (board.connected() && pawn1.connected() /*&& pawn2.connected()*/ && !GameFinished)
     {
       String keypadOutput = GetKeypadOutputString();
+      //int rand;
 
       switch(CurrentPhase) {
         case TurnPhase::Moving:
-            if (scannedTag.valueUpdated())
-            {
-              //Serial.print("Pawn moved to: ");
-              //String value = String(readTag.value());
-              //readTag.readValue(value);
-              String value = reinterpret_cast<const char *>(scannedTag.value());
+          if (scannedTag.valueUpdated())
+          {
+            //Serial.print("Pawn moved to: ");
+            //String value = String(readTag.value());
+            //readTag.readValue(value);
+            String value = reinterpret_cast<const char *>(scannedTag.value());
 
-              if (value.length() > 14)
-                value = value.substring(0,14);
+            if (value.length() > 14)
+              value = value.substring(0,14);
 
-              //Serial.println(value);
+            //Serial.println(value);
 
-              // Move to room if it is adjacent and is able to be entered (i.e not locked or such)
-              if (IsAdjacent(value, PlayerTurn, false))
-              {
-                int posX = 0;
-                int posY = 0;
-
-                GetPosition(value, posX, posY);
-
-                switch (PlayerTurn)
-                {
-                  case 1:
-                    Player1PosX = posX;
-                    Player1PosY = posY;
-                    break;
-                  case 2:
-                    Player2PosX = posX;
-                    Player2PosY = posY;
-                    break;
-                }
-
-                position.writeValue((byte)((posX << 4) + posY));
-
-                Serial.print("Moving to: ");
-                Serial.println(RoomNames[matrix[posX][posY]]);
-                //Serial.println(String(" | ") + String(posX) + ", " + String(posY));
-                CurrentPhase = TurnPhase::InRoom;
-                ActionsLeft = ActionsPerTurn;
-                disableScanner.writeValue((byte)1);
-                Serial.println(String("Actions left: ")+String(ActionsLeft) +String(", What do you want to do?"));
-              }
-
-              else
-                Serial.println("Room is not Adjacent!");
-            }
-            else if (keypadOutput == "*")
+            // Move to room if it is adjacent and is able to be entered (i.e not locked or such)
+            if (IsAdjacent(value, PlayerTurn, false))
             {
               int posX = 0;
               int posY = 0;
 
-              switch (PlayerTurn)
+              GetPosition(value, posX, posY);
+
+              if (roomStates[posX][posY] == RoomState::Locked)
+              {
+                Serial.print("The room is locked, ");
+
+                if (IsInInventory(inventory, 3, Item::Keycard))
                 {
-                  case 1:
-                    posX = Player1PosX;
-                    posY = Player1PosY;
-                    break;
-                  case 2:
-                    posX = Player2PosX;
-                    posY = Player2PosY;
-                    break;
+                  Serial.println("but you open it using a keycard!");
+                  useItem.writeValue((byte)GetItemIndex(inventory, 3, Item::Keycard));
+                  roomStates[posX][posY] = RoomState::Normal;
+                  UpdateRoomState(boardSetState, posX, posY);
                 }
 
-              Serial.print("Staying in: ");
+                else
+                {
+                  Serial.println("and you have no keycard!");
+                  break;
+                }
+              }
+
+              switch (PlayerTurn)
+              {
+                case 1:
+                  Player1PosX = posX;
+                  Player1PosY = posY;
+                  break;
+                case 2:
+                  Player2PosX = posX;
+                  Player2PosY = posY;
+                  break;
+              }
+
+              position.writeValue((byte)((posX << 4) + posY));
+
+              Serial.print("Moving to: ");
               Serial.println(RoomNames[matrix[posX][posY]]);
               //Serial.println(String(" | ") + String(posX) + ", " + String(posY));
-              CurrentPhase = TurnPhase::InRoom;
+              CurrentPhase = TurnPhase::ActionPerformed;
               ActionsLeft = ActionsPerTurn;
               disableScanner.writeValue((byte)1);
-              Serial.println("What do you want to do?");
-              Serial.println(String("Actions left: ")+String(ActionsLeft));
             }
+
+            else
+              Serial.println("Room is not Adjacent!");
+          }
+          else if (keypadOutput == "*")
+          {
+            int posX = 0;
+            int posY = 0;
+
+            switch (PlayerTurn)
+            {
+              case 1:
+                posX = Player1PosX;
+                posY = Player1PosY;
+                break;
+              case 2:
+                posX = Player2PosX;
+                posY = Player2PosY;
+                break;
+            }
+
+            Serial.print("Staying in: ");
+            Serial.println(RoomNames[matrix[posX][posY]]);
+            //Serial.println(String(" | ") + String(posX) + ", " + String(posY));
+            CurrentPhase = TurnPhase::PassTime;
+            ActionsLeft = ActionsPerTurn;
+            disableScanner.writeValue((byte)1);
+            //Serial.print(String("What do you want to do? (")+String("Actions left: ")+String(ActionsLeft)+String(")"));
+          }
           break;
         case TurnPhase::InRoom:
           if (keypadOutput != "")
           {
+            int rand = 0;
             if (keypadOutput == "#") {
               switch (KeypadOutput.toInt())
               {
                 // Search
                 case 1:
+                  if (IsInventoryFull(inventory,3))
+                  {
+                    Serial.println("Inventory is full!");
+                    CurrentPhase = TurnPhase::PassTime;
+                    break;
+                  }
+
                   Serial.print("Searching Room");
                   // Simulates searching room
                   for (int x = 0; x < 3; x++)
                   {
-                    delay(300);
+                    delay(400);
                     Serial.print(". ");
                   }
 
-                  if (random(0,10) <= 6)
+                  rand = ChooseRandomWeighted(ItemOdds,4);
+                  //Serial.print(String("(") + String(rand) + String(")"));
+                  if (rand > 0 /*random(0,10) <= 6*/)
                   {
-                    Serial.println("\nFound Item!");
-                    addItem.writeValue((byte)random(1,3));
+                    Serial.println("Found Item!");
+                    //addItem.writeValue((byte)random(1,3));
+                    addItem.writeValue((byte)rand);
 
                     while (!callback.valueUpdated());
                     //delay(200);
@@ -371,38 +459,30 @@ void loop() {
                     bool value = callback.value();
 
                     if (value)
-                    {
                       Serial.println("Item added to inventory");
-                    }
                     else
                       Serial.println("Unable to add item to inventoy!");
                   }
                   else
                     Serial.println("No Item Found");
 
-                  if (--ActionsLeft == 0)
-                  {
-                    Serial.println("Next Players turn");
-                    CurrentPhase = TurnPhase::NextTurn;
-                  }
-                  else
-                    Serial.println(String("Actions left: ")+String(ActionsLeft));
-
+                  CurrentPhase = TurnPhase::ActionPerformed;
+                  ActionsLeft--;
                   break;
                 // Use
                 case 2:
-                CurrentPhase = TurnPhase::UseItem;
-                Serial.println("What item do you want to use?");
-                break;
+                  CurrentPhase = TurnPhase::UseItem;
+                  Serial.println("What item do you want to use?");
+                  break;
                 // Nothing
                 case 3:
-                Serial.println("Skipping turn");
-                ActionsLeft = 0;
-                CurrentPhase = TurnPhase::NextTurn;
-                break;
+                  Serial.println("Skipping turn");
+                  ActionsLeft = 0;
+                  CurrentPhase = TurnPhase::NextTurn;
+                  break;
                 // Special
                 case 4:
-                break;
+                  break;
               }
 
               KeypadOutput = "";
@@ -413,11 +493,62 @@ void loop() {
             }
           }
           break;
+        case TurnPhase::ActionPerformed:
+          {
+            int x;
+            int y;
+
+            GetPosition(PlayerTurn,x,y);
+            if (roomStates[x][y] == RoomState::GasLeak)
+            {
+              Serial.println("Toxic gas fills your lungs, making you feel nausious");
+              takeDamage.writeValue((byte)1);
+              CurrentPhase = TurnPhase::PassTime;
+              //Serial.print(String("What do you want to do? (")+String("Actions left: ")+String(ActionsLeft)+String(")"));
+              delay(50);
+            }
+
+            //Serial.println(String("Health left: ") + String((int)GetValue(health)));
+
+            if (GetValue(health) == 0)
+            {
+              Serial.println("You died! GAME OVER!");
+              GameFinished = true;
+              break;
+            }
+
+            CurrentPhase = TurnPhase::PassTime;
+          }
+          break;
+        case TurnPhase::PassTime:
+          //UpdateBoard(boardSetRoom, boardSetState);
+
+          if (ActionsLeft == 0)
+          {
+            Serial.println("Moving to next turn");
+            CurrentPhase = TurnPhase::NextTurn;
+          }
+          else
+          {
+            CurrentPhase = TurnPhase::InRoom;
+            Serial.println(String("What do you want to do? (")+String("Actions left: ")+String(ActionsLeft)+String(")"));
+          }
+          break;
         case TurnPhase::UseItem:
           if (keypadOutput != "")
           {
-            if (keypadOutput == "#")
+            if (keypadOutput == "#" && KeypadOutput.toInt()-1 < 3)
             {
+              //if ([KeypadOutput.toInt()-1] >)
+              //  break;
+
+              if (GetItem(inventory,3,KeypadOutput.toInt()-1) == Item::Keycard)
+              {
+                Serial.println("Can't use item!");
+                CurrentPhase = TurnPhase::InRoom;
+                break;
+              }
+
               useItem.writeValue((byte)(max(0,KeypadOutput.toInt()-1)));
               
               while (!callback.valueUpdated());
@@ -429,18 +560,11 @@ void loop() {
               {
                 Serial.println("Using Item");
                 ActionsLeft--;
+                CurrentPhase = TurnPhase::ActionPerformed;
               }
               else
+              {
                 Serial.println("Item not found");
-              
-              if (ActionsLeft == 0)
-              {
-                Serial.println("Next turn");
-                CurrentPhase = TurnPhase::NextTurn;
-              }
-              else
-              {
-                Serial.println(String("Actions left: ")+String(ActionsLeft));
                 CurrentPhase = TurnPhase::InRoom;
               }
 
@@ -453,39 +577,197 @@ void loop() {
           }
           break;
         case TurnPhase::NextTurn:
-          /*if (PlayerTurn = 2)
-            PlayerTurn = 1;
-          else
-            PlayerTurn++;*/
-
-          switch (PlayerTurn) {
-            case 1:
-              scannedTag = pawn1.characteristic(Player1Id, 0);
-              disableScanner = pawn1.characteristic(Player1Id, 1);
-              callback = pawn1.characteristic(Player1Id, 2);
-              health = pawn1.characteristic(Player1Id, 3);
-              addItem = pawn1.characteristic(Player1Id, 4);
-              useItem = pawn1.characteristic(Player1Id, 5);
-              position = pawn1.characteristic(Player1Id, 6);
-              position.writeValue((byte)((Player1PosX << 4) + Player1PosY));
-              break;
-            case 2:
-              scannedTag = pawn2.characteristic(Player2Id, 0);
-              disableScanner = pawn2.characteristic(Player2Id, 1);
-              callback = pawn2.characteristic(Player2Id, 2);
-              health = pawn2.characteristic(Player2Id, 3);
-              addItem = pawn2.characteristic(Player2Id, 4);
-              useItem = pawn2.characteristic(Player2Id, 5);
-              position = pawn2.characteristic(Player2Id, 6);
-              position.writeValue((byte)((Player2PosX << 4) + Player2PosY));
-              break;
+          if (PlayerTurn == 1)
+          {
+            Serial.println("AI's turn");
+            CurrentPhase = TurnPhase::AiTurn;
           }
-          
-          ActionsLeft = ActionsPerTurn;
-          disableScanner.writeValue((byte)0);
-          Serial.println("Where do you want to move?");
-          CurrentPhase = TurnPhase::Moving;
-        break;
+          else
+          {
+            switch (++PlayerTurn)
+            {
+              case 1:
+                scannedTag = pawn1.characteristic(Player1Id, 0);
+                disableScanner = pawn1.characteristic(Player1Id, 1);
+                callback = pawn1.characteristic(Player1Id, 2);
+                health = pawn1.characteristic(Player1Id, 3);
+                addItem = pawn1.characteristic(Player1Id, 4);
+                useItem = pawn1.characteristic(Player1Id, 5);
+                position = pawn1.characteristic(Player1Id, 6);
+                position.writeValue((byte)((Player1PosX << 4) + Player1PosY));
+                inventory = pawn1.characteristic(Player1Id, 7);
+                takeDamage = pawn1.characteristic(Player1Id, 8);
+                break;
+              case 2:
+                scannedTag = pawn2.characteristic(Player2Id, 0);
+                disableScanner = pawn2.characteristic(Player2Id, 1);
+                callback = pawn2.characteristic(Player2Id, 2);
+                health = pawn2.characteristic(Player2Id, 3);
+                addItem = pawn2.characteristic(Player2Id, 4);
+                useItem = pawn2.characteristic(Player2Id, 5);
+                position = pawn2.characteristic(Player2Id, 6);
+                position.writeValue((byte)((Player2PosX << 4) + Player2PosY));
+                inventory = pawn2.characteristic(Player2Id, 7);
+                takeDamage = pawn2.characteristic(Player2Id, 8);
+                break;
+            }
+
+            Serial.println(String("Player ") + String(PlayerTurn) + String("'s turn"));
+
+            ActionsLeft = ActionsPerTurn;
+
+            byte pos;
+
+            position.readValue(pos);
+
+            switch(roomStates[(pos & 0b11110000) >> 4][pos & 0b00001111])
+            {
+              case RoomState::Locked:
+                Serial.println("You are stuck inside a locked room!");
+                CurrentPhase = TurnPhase::PassTime;
+                break;
+              default:
+                disableScanner.writeValue((byte)0);
+                Serial.println("Where do you want to move?");
+                CurrentPhase = TurnPhase::Moving;
+                break;
+            } 
+          }
+          break;
+        case TurnPhase::AiTurn:
+          Serial.print("AI decides to" /*"The AI is trying to stop you! AI decides to"*/);
+          for (int x = 0; x < 3; x++)
+          {
+            delay(400);
+            Serial.print(". ");
+          }
+
+          {
+            int rand = ChooseRandomWeighted(AiChoiceTable,4);
+
+            bool actionPerformed = false;
+
+            while (!actionPerformed)
+              switch((AiChoice)rand) {
+                case AiChoice::OpenDoor:
+                  if (ClosedDoors == 0)
+                  {
+                    rand = (int)AiChoice::CloseDoor;
+                    break;
+                  }
+
+                  Serial.println("Unlock a room!");
+                  {
+                    rand = random(0, ClosedDoors);
+
+                    int closedDoor = 0;
+
+                    for (int x = 0; x < SIZE; x++)
+                    for (int y = 0; y < SIZE; y++)
+                    {
+                      if (roomStates[x][y] == RoomState::Locked)
+                      {
+                        if (closedDoor == rand)
+                        {
+                          roomStates[x][y] = RoomState::Normal;
+                          ClosedDoors--;
+                          actionPerformed = true;
+                          Serial.println(String(" ") + String(RoomNames[matrix[x][y]]) + String(" is now open!"));
+                        }
+
+                        closedDoor++;
+                      }
+                    }
+                  }
+                  break;
+                case AiChoice::CloseDoor:
+                  if (ClosedDoors == MaxClosedDoors)
+                  {
+                    rand = (int)AiChoice::OpenDoor;
+                    break;
+                  }
+
+                  Serial.println("Lock a room!");
+                  {
+                    int posX = 0;
+                    int posY = 0;
+
+                    rand = random(2, 16);
+
+                    GetPosition((Room)rand,posX,posY);
+
+                    while (roomStates[posX][posY] != RoomState::Normal)
+                      GetPosition((Room)rand,posX,posY);
+
+                    roomStates[posX][posY] = RoomState::Locked;
+                    ClosedDoors++;
+                    actionPerformed = true;
+                    Serial.println(String(" ") + String(RoomNames[matrix[posX][posY]]) + String(" is now locked!"));
+                  }
+                  break;
+                case AiChoice::CauseGasLeak:
+                  if (GasLeaks == MaxGasLeaks)
+                  {
+                    rand = (int)AiChoice::SealGasLeak;
+                    break;
+                  }
+
+                  Serial.println("Cause a gas leak!");
+                  {
+                    int posX = 0;
+                    int posY = 0;
+
+                    rand = random(2, 16);
+
+                    GetPosition((Room)rand,posX,posY);
+
+                    while (roomStates[posX][posY] != RoomState::Normal)
+                      GetPosition((Room)rand,posX,posY);
+
+                    roomStates[posX][posY] = RoomState::GasLeak;
+                    GasLeaks++;
+                    actionPerformed = true;
+                    Serial.println(String("A gas leak has appeared in ") + String(RoomNames[matrix[posX][posY]]) + String("!"));
+                  }
+                  break;
+                case AiChoice::SealGasLeak:
+                  if (GasLeaks == 0)
+                  {
+                    rand = (int)AiChoice::CauseGasLeak;
+                    break;
+                  }
+
+                  Serial.println("Seal a gas leak!");
+                  {
+                    rand = random(0, ClosedDoors);
+
+                    int leaks = 0;
+
+                    for (int x = 0; x < SIZE; x++)
+                    for (int y = 0; y < SIZE; y++)
+                    {
+                      if (roomStates[x][y] == RoomState::GasLeak)
+                      {
+                        if (leaks == rand)
+                        {
+                          roomStates[x][y] = RoomState::Normal;
+                          GasLeaks--;
+                          actionPerformed = true;
+                          Serial.println(String("The gas leak ") + String(RoomNames[matrix[x][y]]) + String(" has been sealed!"));
+                        }
+
+                        leaks++;
+                      }
+                    }
+                  }
+                  break;
+              }
+          }
+
+          UpdateBoard(boardSetRoom, boardSetState);
+          PlayerTurn = 0;
+          CurrentPhase = TurnPhase::NextTurn;
+          break;
       }
 
       // Turn order:
@@ -600,7 +882,7 @@ bool GetPosition(String id, int &xOut, int &yOut) {
   return false;
 }
 
-bool Getposition(Room room, int &xOut, int &yOut) {
+bool GetPosition(Room room, int &xOut, int &yOut) {
   for (int x = 0; x < SIZE; x++)
     for (int y = 0; y < SIZE; y++)
       if (matrix[x][y] == (int)room)
@@ -611,6 +893,21 @@ bool Getposition(Room room, int &xOut, int &yOut) {
       }
   
   return false;
+}
+
+bool GetPosition(int player,int &xOut, int &yOut) {
+  switch(player) {
+    case 1:
+      xOut = Player1PosX;
+      yOut = Player1PosY;
+      return true;
+    case 2:
+      xOut = Player2PosX;
+      yOut = Player2PosY;
+      return true;
+    default:
+      return false;
+  }
 }
 
 Room GetRoom(int x, int y) {
@@ -718,15 +1015,24 @@ String GetKeypadOutputString() {
   return output;
 }
 
-void UpdateBoard(BLECharacteristic screens) {
+void UpdateBoard(BLECharacteristic setRoom, BLECharacteristic setState) {
   for (int y = 0; y < 4; y++)
     for (int x = 0; x < 4; x++)
       {
-        byte value = (y*4 + x) << 4;
-        value += matrix[x][y];
-        screens.writeValue(value);
-        delay(100);
+        byte roomValue = (y*4 + x) << 4;
+        roomValue += matrix[x][y];
+        byte stateValue = (y*4 + x) << 4;
+        stateValue += roomStates[x][y];
+        setRoom.writeValue(roomValue);
+        setState.writeValue(stateValue);
+        delay(50);
       }
+}
+
+void UpdateRoomState(BLECharacteristic setState, int x, int y) {
+  byte stateValue = (y*4 + x) << 4;
+  stateValue += roomStates[x][y];
+  setState.writeValue(stateValue);
 }
 
 // Tries connecting to peripheral. Returns true if connecting is succesfull, otherwise it's false.
@@ -770,4 +1076,99 @@ bool ConnectToPeripheral(const char *id,BLEDevice &deviceToConnect) {
 
   deviceToConnect = peripheral;
   return true;
+}
+
+int ChooseRandomWeighted(int oddsTable[]) {
+  int size = sizeof(oddsTable)/sizeof(oddsTable[0]);
+  int odds = 0;
+
+  for (int x = 0; x < size; x++)
+    odds += oddsTable[x];
+
+  int randNum = random(0,odds);
+
+  for (int x = 0; x < size; x++)
+  {
+    if (randNum < oddsTable[x])
+      return x;
+
+    randNum -= oddsTable[x];
+  }
+
+  return size-1;
+}
+
+int ChooseRandomWeighted(int oddsTable[], int size) {
+  int odds = 0;
+
+  for (int x = 0; x < size; x++)
+    odds += oddsTable[x];
+
+  int randNum = random(0,odds);
+
+  for (int x = 0; x < size; x++)
+  {
+    if (randNum < oddsTable[x])
+      return x;
+
+    randNum -= oddsTable[x];
+  }
+
+  return size-1;
+}
+
+int CurrentlyClosedDoors() {
+  int closedDoors = 0;
+
+  for (int x = 0; x < SIZE; x++)
+    for (int y = 0; y < SIZE; y++)
+      if (roomStates[x][y] == RoomState::Locked)
+
+
+  return closedDoors;
+}
+
+bool IsInventoryFull(BLECharacteristic inventory, int size) {
+  byte inv[3];
+  inventory.readValue(inv,3);
+
+  for (int x = 0; x < size; x++)
+    if (inventory[x] == Item::None)
+      return false;
+
+  return true;
+}
+
+int GetValue(BLECharacteristic characteristic) {
+  int32_t value;
+  characteristic.readValue(value);
+  return value;
+}
+
+bool IsInInventory(BLECharacteristic inventory, int size, Item itemToSearch) {
+  byte inv[3];
+  inventory.readValue(inv,3);
+
+  for (int x = 0; x < size; x++)
+    if (inventory[x] == itemToSearch)
+      return true;
+
+  return false;
+}
+
+int GetItemIndex(BLECharacteristic inventory, int size, Item getIndexOf) {
+  byte inv[3];
+  inventory.readValue(inv,3);
+
+  for (int x = 0; x < size; x++)
+    if (inventory[x] == getIndexOf)
+      return x;
+
+  return -1;
+}
+
+Item GetItem(BLECharacteristic inventory, int size, int index) {
+  byte inv[3];
+  inventory.readValue(inv,3);
+  return (Item)inv[index];
 }

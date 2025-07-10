@@ -16,7 +16,8 @@ enum Item
 {
   None,
   Medkit,
-  Beer
+  Beer,
+  Keycard
 };
 
 BLEService GamePawn("10e62b35-1ed8-4149-aeca-4df2e8b24132");
@@ -29,6 +30,8 @@ BLEIntCharacteristic HealthCharacteristic(GamePawn.uuid(), BLERead | BLEWrite | 
 BLEIntCharacteristic AddItemCharacteristic(GamePawn.uuid(), BLERead | BLEWrite);
 BLEIntCharacteristic UseItemCharacteristic(GamePawn.uuid(), BLERead | BLEWrite);
 BLEByteCharacteristic Position(GamePawn.uuid(), BLERead | BLEWrite);
+BLECharacteristic InventoryCharacteristic(GamePawn.uuid(), BLERead | BLEWrite, 3);
+BLEIntCharacteristic TakeDamage(GamePawn.uuid(), BLEWrite);
 
 MFRC522DriverPinSimple ss_pin(5);
 MFRC522DriverSPI driver{ss_pin}; // Create SPI driver
@@ -76,9 +79,6 @@ void setup() {
   BLE.setLocalName(name.c_str());
   BLE.setAdvertisedService(GamePawn);
 
-  HealthCharacteristic.writeValue(Health);
-  DisableScanner.writeValue(false);
-
   GamePawn.addCharacteristic(RfidId);
   GamePawn.addCharacteristic(DisableScanner);
   GamePawn.addCharacteristic(CallbackResponse);
@@ -86,12 +86,19 @@ void setup() {
   GamePawn.addCharacteristic(AddItemCharacteristic);
   GamePawn.addCharacteristic(UseItemCharacteristic);
   GamePawn.addCharacteristic(Position);
+  GamePawn.addCharacteristic(InventoryCharacteristic);
+  GamePawn.addCharacteristic(TakeDamage);
+
+  HealthCharacteristic.writeValue(MaxHealth);
+  DisableScanner.writeValue(false);
 
   BLE.addService(GamePawn);
   
-  AddItemCharacteristic.setEventHandler(BLEWritten,AddItemEvent);
-  UseItemCharacteristic.setEventHandler(BLEWritten,UseItemEvent);
-  Position.setEventHandler(BLEWritten,PositionChangeEvent);
+  AddItemCharacteristic.setEventHandler(BLEWritten, AddItemEvent);
+  UseItemCharacteristic.setEventHandler(BLEWritten, UseItemEvent);
+  Position.setEventHandler(BLEWritten, PositionChangeEvent);
+  TakeDamage.setEventHandler(BLEWritten, TakeDamageEvent);
+  //HealthCharacteristic.setEventHandler(BLERead, TestEvent);
 
   // start advertising
   BLE.advertise();
@@ -113,6 +120,7 @@ void loop() {
     Serial.println(central.address());
     UpdateHealthBar();
     UpdateDisplay();
+    //HealthCharacteristic.writeValue((byte)Health);
 
     // while the central is still connected to peripheral:
     while (central.connected())
@@ -131,28 +139,6 @@ void loop() {
         else
           Serial.println("Scanner disabled");
       }
-
-      /*if (UseItemCharacteristic.written())
-        if (UseItemCharacteristic.value() > 0)
-        {
-          Serial.print("Using Item: ");
-          Serial.println(KeypadCharacteristic.value()-1);
-          UseItem(KeypadCharacteristic.value()-1);
-          UseItemCharacteristic.writeValue(0);
-          UpdateHealthBar();
-          UpdateDisplay();
-        }*/
-
-      /*if (AddItemCharacteristic.written())
-        if (AddItemCharacteristic.value() > 0)
-        {
-          Serial.print("Using Item: ");
-          Serial.println(KeypadCharacteristic.value()-1);
-          UseItem(KeypadCharacteristic.value()-1);
-          AddItemCharacteristic.writeValue(0);
-          UpdateHealthBar();
-          UpdateDisplay();
-        }*/
     }
 
     Serial.print(F("Disconnected from central: "));
@@ -278,6 +264,9 @@ void UpdateDisplay()
         case Item::Beer:
           Screen.drawXBMP(xPos, yPos, 32, 32, BeerIcon);
           break;
+        case Item::Keycard:
+          Screen.drawXBMP(xPos, yPos, 32, 32, KeycardIcon);
+          break;
       }
     }
   }
@@ -351,6 +340,10 @@ void AddItemEvent(BLEDevice central, BLECharacteristic characteristic) {
   AddItem(AddItemCharacteristic.value());
   UpdateHealthBar();
   UpdateDisplay();
+
+  byte newInv[3] = { (byte)Inventory[0], (byte)Inventory[1], (byte)Inventory[2] };
+  InventoryCharacteristic.writeValue(newInv,3);
+  //HealthCharacteristic.writeValue(Health);
 }
 
 void UseItemEvent(BLEDevice central, BLECharacteristic characteristic) {
@@ -359,10 +352,27 @@ void UseItemEvent(BLEDevice central, BLECharacteristic characteristic) {
   UseItem(UseItemCharacteristic.value());
   UpdateHealthBar();
   UpdateDisplay();
+
+  byte newInv[3] = { (byte)Inventory[0], (byte)Inventory[1], (byte)Inventory[2] };
+  InventoryCharacteristic.writeValue(newInv,3);
+  //HealthCharacteristic.writeValue(Health);
 }
 
 void PositionChangeEvent(BLEDevice central, BLECharacteristic characteristic) {
+  Serial.println("Position updated");
   UpdateDisplay();
+  //HealthCharacteristic.writeValue(Health);
+}
+
+void TakeDamageEvent(BLEDevice central, BLECharacteristic characteristic) {
+  Serial.println("Taking damage");
+  ChangeHealth(-TakeDamage.value());
+  UpdateDisplay();
+  UpdateHealthBar();
+}
+
+void TestEvent(BLEDevice central, BLECharacteristic characteristic) {
+  Serial.println("Health characteristic read");
 }
 
 void AddItem(Item itemToAdd)
@@ -375,7 +385,7 @@ void AddItem(Item itemToAdd)
           Inventory[x] = (Item)itemToAdd;
           itemsInInventory++;
           CallbackResponse.writeValue(true);
-          break;
+          return;
         }
       }
   
@@ -393,27 +403,35 @@ void UseItem(int itemIndex)
   Serial.print(itemIndex);
   bool itemUsed = false;
   if (itemIndex >= 0 && itemIndex < GetArrayLength(sizeof(Inventory),sizeof(Inventory[0])))
-  switch(Inventory[itemIndex])
-  {
-    case Item::Medkit:
-    //Health = constrain(Health+2,0,MaxHealth);
-    Serial.println(String(" | Medkit"));
-    ChangeHealth(2);
-    itemUsed = true;
-    break;
-    case Item::Beer:
-    //Health = constrain(Health-1,0,MaxHealth);
-    Serial.println(String(" | Beer bottle"));
-    ChangeHealth(-1);
-    itemUsed = true;
-    break;
-  }
+    switch(Inventory[itemIndex])
+    {
+      case Item::Medkit:
+        //Health = constrain(Health+2,0,MaxHealth);
+        Serial.println(String(" | Medkit"));
+        ChangeHealth(2);
+        itemUsed = true;
+        break;
+      case Item::Beer:
+        //Health = constrain(Health-1,0,MaxHealth);
+        Serial.println(String(" | Beer bottle"));
+        ChangeHealth(1);
+        itemUsed = true;
+        break;
+      case Item::Keycard:
+        Serial.println(String(" | Key card"));
+        itemUsed = true;
+        break;
+    }
 
   if (itemUsed)
   {
+    //CallbackResponse.writeValue(Inventory[itemIndex]);
     Inventory[itemIndex] = Item::None;
     itemsInInventory--;
   }
+  
+  //else
+  //  CallbackResponse.writeValue(0);
 
   CallbackResponse.writeValue(itemUsed);
 }
@@ -424,8 +442,9 @@ int GetArrayLength(int arraySize, int byteSize)
 }
 
 void ChangeHealth(int change) {
-  Health = constrain(Health+change,0,MaxHealth);
-  HealthCharacteristic.writeValue(Health);
+  Health += change;
+  Health = constrain(Health,0,MaxHealth);
+  HealthCharacteristic.writeValue((byte)Health);
 }
 
 void GetPosition(byte value, int &x, int &y) {
