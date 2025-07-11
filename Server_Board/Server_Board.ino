@@ -125,6 +125,13 @@ int ItemOddsSecurity[] = {
   40
 };
 
+int ItemOddsRecCenter[] = {
+  30,
+  0,
+  70,
+  0
+};
+
 const char* Player1Id = "10e62b35-1ed8-4149-aeca-4df2e8b24132";
 const char* Player2Id = "d2d5dba7-9225-46b5-ab2e-ddef6cf090c8";
 const char* ScreenControllerId = "646c3367-5f9c-4b50-bc95-4701b2d8ba50";
@@ -445,7 +452,21 @@ void loop() {
                     Serial.print(". ");
                   }
 
-                  rand = ChooseRandomWeighted(ItemOdds,4);
+                  switch (GetRoom(PlayerTurn)) {
+                    case Room::Medbay:
+                      rand = ChooseRandomWeighted(ItemOddsMedbay, 4);
+                      break;
+                    case Room::Security:
+                      rand = ChooseRandomWeighted(ItemOddsSecurity, 4);
+                      break;
+                    case Room::RecreationalCenter:
+                      rand = ChooseRandomWeighted(ItemOddsRecCenter, 4);
+                      break;
+                    default:
+                      rand = ChooseRandomWeighted(ItemOdds, 4);
+                      break;
+                  }
+
                   //Serial.print(String("(") + String(rand) + String(")"));
                   if (rand > 0 /*random(0,10) <= 6*/)
                   {
@@ -672,7 +693,9 @@ void loop() {
                           roomStates[x][y] = RoomState::Normal;
                           ClosedDoors--;
                           actionPerformed = true;
-                          Serial.println(String(" ") + String(RoomNames[matrix[x][y]]) + String(" is now open!"));
+
+                          if (!FogOfWar || (FogOfWar && Discovered[posX][posY]))
+                            Serial.println(String(" ") + String(RoomNames[matrix[x][y]]) + String(" is now open!"));
                         }
 
                         closedDoor++;
@@ -702,7 +725,9 @@ void loop() {
                     roomStates[posX][posY] = RoomState::Locked;
                     ClosedDoors++;
                     actionPerformed = true;
-                    Serial.println(String(" ") + String(RoomNames[matrix[posX][posY]]) + String(" is now locked!"));
+
+                    if (!FogOfWar || (FogOfWar && Discovered[posX][posY]))
+                      Serial.println(String(" ") + String(RoomNames[matrix[posX][posY]]) + String(" is now locked!"));
                   }
                   break;
                 case AiChoice::CauseGasLeak:
@@ -727,7 +752,9 @@ void loop() {
                     roomStates[posX][posY] = RoomState::GasLeak;
                     GasLeaks++;
                     actionPerformed = true;
-                    Serial.println(String("A gas leak has appeared in ") + String(RoomNames[matrix[posX][posY]]) + String("!"));
+
+                    if (!FogOfWar || (FogOfWar && Discovered[posX][posY]))
+                      Serial.println(String("A gas leak has appeared in ") + String(RoomNames[matrix[posX][posY]]) + String("!"));
                   }
                   break;
                 case AiChoice::SealGasLeak:
@@ -753,7 +780,9 @@ void loop() {
                           roomStates[x][y] = RoomState::Normal;
                           GasLeaks--;
                           actionPerformed = true;
-                          Serial.println(String("The gas leak ") + String(RoomNames[matrix[x][y]]) + String(" has been sealed!"));
+                          
+                          if (!FogOfWar || (FogOfWar && Discovered[posX][posY]))
+                            Serial.println(String("The gas leak ") + String(RoomNames[matrix[x][y]]) + String(" has been sealed!"));
                         }
 
                         leaks++;
@@ -914,6 +943,17 @@ Room GetRoom(int x, int y) {
   return (Room)matrix[x][y];
 }
 
+Room GetRoom(int player) {
+  switch (player) {
+    case 1:
+      return matrix[Player1PosX][Player1PosY];
+    case 2:
+      return matrix[Player2PosX][Player2PosY];
+    default:
+      return (Room)-1;
+  }
+}
+
 int GetKeypadOutput() {
   int output = 0x00;
 
@@ -1023,10 +1063,18 @@ void UpdateBoard(BLECharacteristic setRoom, BLECharacteristic setState) {
         roomValue += matrix[x][y];
         byte stateValue = (y*4 + x) << 4;
         stateValue += roomStates[x][y];
+        if (FogOfWar)
         setRoom.writeValue(roomValue);
         setState.writeValue(stateValue);
         delay(50);
       }
+}
+
+void UpdateRoom(BLECharacteristic setRoom, int x, int y) {
+  byte roomValue = (y*4 + x) << 4;
+  roomValue += matrix[x][y];
+  setRoom.writeValue(roomValue);
+  delay(50);
 }
 
 void UpdateRoomState(BLECharacteristic setState, int x, int y) {
