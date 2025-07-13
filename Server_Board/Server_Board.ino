@@ -7,7 +7,9 @@
 //#include "TCA9548A.h"
 //#include <Wire.h>
 //#include <SoftwareWire.h>
-#define SPEAKER 6
+//#define SPEAKER 6
+#include <Dictionary.h>
+#include <microTuple.h>
 
 enum Room {
   Bunks = 0,
@@ -176,6 +178,10 @@ int GasLeaks = 0;
 int MaxClosedDoors = 6;
 int MaxGasLeaks = 3;
 
+Dictionary<int, MicroTuple<String,bool>> PasscodeDigitLocations;
+String Passcode;
+int PasscodeLength = 4;
+
 void shuffleArray(int *array, int n) {
   for (int i = n - 1; i > 0; --i) {
     int j = random(i + 1);
@@ -239,7 +245,8 @@ void setup() {
   Discovered[0][0] = true;
 
   assignArray();
-
+  GenerateCode();
+  
   //CurrentPhase = TurnPhase::NextTurn;
 }
 
@@ -694,7 +701,7 @@ void loop() {
                           ClosedDoors--;
                           actionPerformed = true;
 
-                          if (!FogOfWar || (FogOfWar && Discovered[posX][posY]))
+                          if (!FogOfWar || (FogOfWar && Discovered[x][y]))
                             Serial.println(String(" ") + String(RoomNames[matrix[x][y]]) + String(" is now open!"));
                         }
 
@@ -781,7 +788,7 @@ void loop() {
                           GasLeaks--;
                           actionPerformed = true;
                           
-                          if (!FogOfWar || (FogOfWar && Discovered[posX][posY]))
+                          if (!FogOfWar || (FogOfWar && Discovered[x][y]))
                             Serial.println(String("The gas leak ") + String(RoomNames[matrix[x][y]]) + String(" has been sealed!"));
                         }
 
@@ -829,6 +836,18 @@ void loop() {
 
   //Stops game once finished
   while (GameFinished);
+}
+
+void GenerateCode() {
+  Passcode = String("");
+  String tempStr = String("");
+
+  for (int x = 0; x < PasscodeLength; x++)
+  {
+    Passcode += String(random(0,10));
+    PasscodeDigitLocations.set(random(2,16),MicroTuple<String,bool>(tempStr+String(Passcode.charAt(x)), false));
+    tempStr += String("X");
+  }
 }
 
 bool IsAdjacent(String scannedID, int player, bool move) {
@@ -946,9 +965,9 @@ Room GetRoom(int x, int y) {
 Room GetRoom(int player) {
   switch (player) {
     case 1:
-      return matrix[Player1PosX][Player1PosY];
+      return (Room)matrix[Player1PosX][Player1PosY];
     case 2:
-      return matrix[Player2PosX][Player2PosY];
+      return (Room)matrix[Player2PosX][Player2PosY];
     default:
       return (Room)-1;
   }
