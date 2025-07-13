@@ -89,7 +89,8 @@ enum TurnPhase {
   ActionPerformed,
   UseItem,
   NextTurn,
-  AiTurn
+  AiTurn,
+  InputCode
 };
 
 enum AiChoice {
@@ -132,6 +133,20 @@ int ItemOddsRecCenter[] = {
   0,
   70,
   0
+};
+
+int ItemOddsBunks[] = {
+  85,
+  5,
+  5,
+  5
+};
+
+int ItemOddsAiCore[] = {
+  95,
+  0,
+  0,
+  5
 };
 
 const char* Player1Id = "10e62b35-1ed8-4149-aeca-4df2e8b24132";
@@ -183,7 +198,7 @@ int GasLeaks = 0;
 int MaxClosedDoors = 6;
 int MaxGasLeaks = 3;
 
-Dictionary<int, MicroTuple<String,bool>> PasscodeDigitLocations;
+Dictionary<int, MicroTuple<String, bool>> PasscodeDigitLocations;
 String Passcode;
 int PasscodeLength = 4;
 
@@ -199,7 +214,7 @@ void shuffleArray(int *array, int n) {
 void assignArray() {
   //randomSeed(analogRead(0));
 
-  // Fill array with numbers 1 to 16
+  // Fill array with numbers 1 to 15
   for (int i = 0; i < SIZE * SIZE - 1; ++i) {
     numbers[i] = i + 2;
   }
@@ -249,12 +264,9 @@ void setup() {
 
   Discovered[0][0] = true;
   assignArray();
-<<<<<<< Updated upstream
   GenerateCode();
   
   //CurrentPhase = TurnPhase::NextTurn;
-=======
->>>>>>> Stashed changes
 }
 
 void loop() {
@@ -476,20 +488,40 @@ void loop() {
                     Serial.print(". ");
                   }
 
-                  switch (GetRoom(PlayerTurn)) {
-                    case Room::Medbay:
-                      rand = ChooseRandomWeighted(ItemOddsMedbay, 4);
+                  {
+                    MicroTuple<String,bool> digit = PasscodeDigitLocations.get((int)GetRoom(PlayerTurn));
+
+                    if (!digit.get<1>())
+                    {
+                      Serial.println(String("a number for the code"));
+                      Serial.println(String("The digit is: ") + String(digit.get<0>()));
+                      digit.rest.set<0>(true);
+                      CurrentPhase = TurnPhase::ActionPerformed;
+                      ActionsLeft--;
                       break;
-                    case Room::Security:
-                      rand = ChooseRandomWeighted(ItemOddsSecurity, 4);
-                      break;
-                    case Room::RecreationalCenter:
-                      rand = ChooseRandomWeighted(ItemOddsRecCenter, 4);
-                      break;
-                    default:
-                      rand = ChooseRandomWeighted(ItemOdds, 4);
-                      break;
+                    }
                   }
+
+                  switch (GetRoom(PlayerTurn)) {
+                      case Room::Bunks:
+                        rand = ChooseRandomWeighted(ItemOddsBunks, 4);
+                        break;
+                      case Room::AiCore:
+                        rand = ChooseRandomWeighted(ItemOddsAiCore, 4);
+                        break;
+                      case Room::Medbay:
+                        rand = ChooseRandomWeighted(ItemOddsMedbay, 4);
+                        break;
+                      case Room::Security:
+                        rand = ChooseRandomWeighted(ItemOddsSecurity, 4);
+                        break;
+                      case Room::RecreationalCenter:
+                        rand = ChooseRandomWeighted(ItemOddsRecCenter, 4);
+                        break;
+                      default:
+                        rand = ChooseRandomWeighted(ItemOdds, 4);
+                        break;
+                    }
 
                   //Serial.print(String("(") + String(rand) + String(")"));
                   if (rand > 0 /*random(0,10) <= 6*/)
@@ -527,19 +559,31 @@ void loop() {
                   break;
                 // Special
                 case 4:
-                  switch (GetRoom(PlayerTurn)) {
-                    case Room::Medbay:
-                      Serial.println("You scrounge around for supplies and patch yourself up to full health!");
-                      heal.writeValue((byte)10);
-                      ActionsLeft--;
-                      CurrentPhase = TurnPhase::ActionPerformed;
-                      break;
-                    case Room::Airlock:
-                      Serial.println("You don't think it's a good idea to mess with the airlock . . .");
-                      break;
-                    default:
-                      Serial.println("There is nothing special that can be done here");
-                      break;
+                  {
+                    MicroTuple<String,bool> digit = PasscodeDigitLocations.get((int)GetRoom(PlayerTurn));
+
+                    if (digit.get<1>())
+                      Serial.println(String("The found digit is: ") + String(digit.get<0>()));
+                    
+                    //else
+                    switch (GetRoom(PlayerTurn)) {
+                      case Room::Medbay:
+                        Serial.println("You scrounge around for supplies and patch yourself up to full health!");
+                        heal.writeValue((byte)10);
+                        ActionsLeft--;
+                        CurrentPhase = TurnPhase::ActionPerformed;
+                        break;
+                      case Room::Airlock:
+                        Serial.println("You don't think it's a good idea to mess with the airlock . . .");
+                        break;
+                      case Room::AiCore:
+                        Serial.println("You go to try to input a new code");
+                        CurrentPhase == TurnPhase::InputCode;
+                        break;
+                      default:
+                        Serial.println("There is nothing special that can be done here");
+                        break;
+                    }
                   }
                   break;
               }
@@ -582,13 +626,13 @@ void loop() {
         case TurnPhase::PassTime:
           //UpdateBoard(boardSetRoom, boardSetState);
 
-          if (GetRoom(1) == Room::AiCore /*&& GetRoom(2) == Room::AiCore*/)
+          /*if (GetRoom(1) == Room::AiCore /*&& GetRoom(2) == Room::AiCore)
           {
             Serial.println("You manage to reach the AI core and shut down the rouge AI! YOU WIN!");
             GameFinished = true;
             break;
-          }
-          else if (ActionsLeft == 0)
+          }*/
+          if (ActionsLeft == 0)
           {
             Serial.println("Moving to next turn");
             CurrentPhase = TurnPhase::NextTurn;
@@ -843,6 +887,37 @@ void loop() {
           PlayerTurn = 0;
           CurrentPhase = TurnPhase::NextTurn;
           break;
+        case TurnPhase::InputCode:
+          if (keypadOutput != "")
+          {
+            if (keypadOutput == "#")
+            {
+              if (KeypadOutput == Passcode)
+              {
+                Serial.println("SUCCESS! You manage to input the right code and shut down the rouge AI! YOU WIN!");
+                GameFinished = true;
+              }
+              else
+              {
+                Serial.println("DENIED! WRONG CODE!");
+                CurrentPhase = TurnPhase::ActionPerformed;
+                ActionsLeft--;
+              }
+
+              KeypadOutput = "";
+            } else if (keypadOutput != "*" && KeypadOutput.length() < PasscodeLength) {
+              KeypadOutput += keypadOutput;
+            } else {
+              if (KeypadOutput == "")
+              {
+                Serial.println("Going back");
+                CurrentPhase = TurnPhase::InRoom;
+              }
+              else
+                KeypadOutput = "";
+            }
+          }
+          break;
       }
 
       // Turn order:
@@ -884,8 +959,16 @@ void GenerateCode() {
   for (int x = 0; x < PasscodeLength; x++)
   {
     Passcode += String(random(0,10));
-    PasscodeDigitLocations.set(random(2,16),MicroTuple<String,bool>(tempStr+String(Passcode.charAt(x)), false));
     tempStr += String("X");
+  }
+
+  shuffleArray(numbers, SIZE * SIZE -2);
+
+  for (int x = 0; x < PasscodeLength; x++)
+  {
+    tempStr[x] = numbers[x];
+    PasscodeDigitLocations.set(random(2,16), MicroTuple<String,bool>(tempStr+String(Passcode.charAt(x)), false));
+    tempStr[x] = 'X';
   }
 }
 
@@ -1004,15 +1087,9 @@ Room GetRoom(int x, int y) {
 Room GetRoom(int player) {
   switch (player) {
     case 1:
-<<<<<<< Updated upstream
       return (Room)matrix[Player1PosX][Player1PosY];
     case 2:
       return (Room)matrix[Player2PosX][Player2PosY];
-=======
-      return (Room) matrix[Player1PosX][Player1PosY];
-    case 2:
-      return (Room) matrix[Player2PosX][Player2PosY];
->>>>>>> Stashed changes
     default:
       return (Room)-1;
   }
