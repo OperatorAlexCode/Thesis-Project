@@ -107,10 +107,10 @@ int AiChoiceTable[] = {
 };
 
 int ItemOdds[] = {
-  40,
+  50,
+  15,
   20,
-  30,
-  10
+  5
 };
 
 int ItemOddsMedbay[] = {
@@ -149,7 +149,12 @@ String Ids[SIZE][SIZE] = {
 int matrix[SIZE][SIZE];
 int numbers[SIZE * SIZE - 2]; // reservered for bunks/aiCore
 int roomStates[SIZE][SIZE];
-bool Discovered[SIZE][SIZE];
+bool Discovered[SIZE][SIZE] /*= {
+  { true, false, false, false },
+  { false, false, false, false },
+  { false, false, false, false },
+  { false, false, false, false }
+}*/;
 
 int Player1PosX = 0, Player1PosY = 0;
 int Player2PosX = 0, Player2PosY = 0;
@@ -171,7 +176,7 @@ int PlayerTurn = 1;
 
 bool GameFinished = false;
 bool GameStarted = false;
-bool FogOfWar = false;
+bool FogOfWar = true;
 
 int ClosedDoors = 0;
 int GasLeaks = 0;
@@ -243,11 +248,13 @@ void setup() {
   Serial.println("Server initialized");
 
   Discovered[0][0] = true;
-
   assignArray();
+<<<<<<< Updated upstream
   GenerateCode();
   
   //CurrentPhase = TurnPhase::NextTurn;
+=======
+>>>>>>> Stashed changes
 }
 
 void loop() {
@@ -270,8 +277,9 @@ void loop() {
   if (board && pawn1 /*&& pawn2*/)
   {
     //Serial.println("Initializing characteristics");
-    BLECharacteristic boardSetRoom = board.characteristic(ScreenControllerId,0);
-    BLECharacteristic boardSetState = board.characteristic(ScreenControllerId,1);
+    BLECharacteristic boardSetRoom = board.characteristic(ScreenControllerId, 0);
+    BLECharacteristic boardSetState = board.characteristic(ScreenControllerId, 1);
+    BLECharacteristic boardSetDiscovered = board.characteristic(ScreenControllerId, 2);
     
     BLECharacteristic scannedTag;
     BLECharacteristic disableScanner;
@@ -282,6 +290,7 @@ void loop() {
     BLECharacteristic position;
     BLECharacteristic inventory;
     BLECharacteristic takeDamage;
+    BLECharacteristic heal;
 
     switch (PlayerTurn)
     {
@@ -295,6 +304,7 @@ void loop() {
         position = pawn1.characteristic(Player1Id, 6);
         inventory = pawn1.characteristic(Player1Id, 7);
         takeDamage = pawn1.characteristic(Player1Id, 8);
+        heal = pawn1.characteristic(Player1Id, 9);
         position.writeValue((byte)((Player1PosX << 4) + Player1PosY));
         break;
       case 2:
@@ -307,6 +317,7 @@ void loop() {
         position = pawn2.characteristic(Player2Id, 6);
         inventory = pawn2.characteristic(Player2Id, 7);
         takeDamage = pawn2.characteristic(Player2Id, 8);
+        heal = pawn2.characteristic(Player2Id, 9);
         position.writeValue((byte)((Player2PosX << 4) + Player2PosY));
         break;
     }
@@ -315,7 +326,7 @@ void loop() {
     callback.subscribe();
     health.subscribe();
 
-    UpdateBoard(boardSetRoom, boardSetState);
+    UpdateBoard(boardSetRoom, boardSetState, boardSetDiscovered);
 
     //Serial.println(String("Player ")+String(PlayerTurn)+String("'s turn"));
 
@@ -364,6 +375,12 @@ void loop() {
               int posY = 0;
 
               GetPosition(value, posX, posY);
+
+              if (!Discovered[posX][posY])
+              {
+                Discovered[posX][posY] = true;
+                UpdateRoomDiscovered(boardSetDiscovered, posX, posY);
+              }
 
               if (roomStates[posX][posY] == RoomState::Locked)
               {
@@ -510,6 +527,20 @@ void loop() {
                   break;
                 // Special
                 case 4:
+                  switch (GetRoom(PlayerTurn)) {
+                    case Room::Medbay:
+                      Serial.println("You scrounge around for supplies and patch yourself up to full health!");
+                      heal.writeValue((byte)10);
+                      ActionsLeft--;
+                      CurrentPhase = TurnPhase::ActionPerformed;
+                      break;
+                    case Room::Airlock:
+                      Serial.println("You don't think it's a good idea to mess with the airlock . . .");
+                      break;
+                    default:
+                      Serial.println("There is nothing special that can be done here");
+                      break;
+                  }
                   break;
               }
 
@@ -551,7 +582,13 @@ void loop() {
         case TurnPhase::PassTime:
           //UpdateBoard(boardSetRoom, boardSetState);
 
-          if (ActionsLeft == 0)
+          if (GetRoom(1) == Room::AiCore /*&& GetRoom(2) == Room::AiCore*/)
+          {
+            Serial.println("You manage to reach the AI core and shut down the rouge AI! YOU WIN!");
+            GameFinished = true;
+            break;
+          }
+          else if (ActionsLeft == 0)
           {
             Serial.println("Moving to next turn");
             CurrentPhase = TurnPhase::NextTurn;
@@ -622,9 +659,10 @@ void loop() {
                 addItem = pawn1.characteristic(Player1Id, 4);
                 useItem = pawn1.characteristic(Player1Id, 5);
                 position = pawn1.characteristic(Player1Id, 6);
-                position.writeValue((byte)((Player1PosX << 4) + Player1PosY));
                 inventory = pawn1.characteristic(Player1Id, 7);
                 takeDamage = pawn1.characteristic(Player1Id, 8);
+                heal = pawn1.characteristic(Player1Id, 9);
+                position.writeValue((byte)((Player1PosX << 4) + Player1PosY));
                 break;
               case 2:
                 scannedTag = pawn2.characteristic(Player2Id, 0);
@@ -634,9 +672,10 @@ void loop() {
                 addItem = pawn2.characteristic(Player2Id, 4);
                 useItem = pawn2.characteristic(Player2Id, 5);
                 position = pawn2.characteristic(Player2Id, 6);
-                position.writeValue((byte)((Player2PosX << 4) + Player2PosY));
                 inventory = pawn2.characteristic(Player2Id, 7);
                 takeDamage = pawn2.characteristic(Player2Id, 8);
+                heal = pawn2.characteristic(Player2Id, 9);
+                position.writeValue((byte)((Player2PosX << 4) + Player2PosY));
                 break;
             }
 
@@ -800,7 +839,7 @@ void loop() {
               }
           }
 
-          UpdateBoard(boardSetRoom, boardSetState);
+          UpdateBoard(boardSetRoom, boardSetState, boardSetDiscovered);
           PlayerTurn = 0;
           CurrentPhase = TurnPhase::NextTurn;
           break;
@@ -965,9 +1004,15 @@ Room GetRoom(int x, int y) {
 Room GetRoom(int player) {
   switch (player) {
     case 1:
+<<<<<<< Updated upstream
       return (Room)matrix[Player1PosX][Player1PosY];
     case 2:
       return (Room)matrix[Player2PosX][Player2PosY];
+=======
+      return (Room) matrix[Player1PosX][Player1PosY];
+    case 2:
+      return (Room) matrix[Player2PosX][Player2PosY];
+>>>>>>> Stashed changes
     default:
       return (Room)-1;
   }
@@ -1074,7 +1119,7 @@ String GetKeypadOutputString() {
   return output;
 }
 
-void UpdateBoard(BLECharacteristic setRoom, BLECharacteristic setState) {
+void UpdateBoard(BLECharacteristic setRoom, BLECharacteristic setState, BLECharacteristic setDiscovered) {
   for (int y = 0; y < 4; y++)
     for (int x = 0; x < 4; x++)
       {
@@ -1082,24 +1127,38 @@ void UpdateBoard(BLECharacteristic setRoom, BLECharacteristic setState) {
         roomValue += matrix[x][y];
         byte stateValue = (y*4 + x) << 4;
         stateValue += roomStates[x][y];
+        byte discoveredValue = (y*4 + x) << 4;
+
         if (FogOfWar)
+          discoveredValue += (int)Discovered[x][y];
+
+        else
+          discoveredValue += 1;
+        
+        setDiscovered.writeValue(discoveredValue);
         setRoom.writeValue(roomValue);
         setState.writeValue(stateValue);
-        delay(50);
+
+        delay(20);
       }
 }
 
 void UpdateRoom(BLECharacteristic setRoom, int x, int y) {
-  byte roomValue = (y*4 + x) << 4;
-  roomValue += matrix[x][y];
-  setRoom.writeValue(roomValue);
-  delay(50);
+  byte value = (y*4 + x) << 4;
+  value += matrix[x][y];
+  setRoom.writeValue(value);
 }
 
 void UpdateRoomState(BLECharacteristic setState, int x, int y) {
   byte stateValue = (y*4 + x) << 4;
   stateValue += roomStates[x][y];
   setState.writeValue(stateValue);
+}
+
+void UpdateRoomDiscovered(BLECharacteristic setDiscovered, int x, int y) {
+  byte value = (y*4 + x) << 4;
+  value += Discovered[x][y];
+  setDiscovered.writeValue(value);
 }
 
 // Tries connecting to peripheral. Returns true if connecting is succesfull, otherwise it's false.

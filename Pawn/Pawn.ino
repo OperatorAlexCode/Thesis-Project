@@ -20,18 +20,21 @@ enum Item
   Keycard
 };
 
+// Player 1
 BLEService GamePawn("10e62b35-1ed8-4149-aeca-4df2e8b24132");
+// Player 2
 //BLEService GamePawn("d2d5dba7-9225-46b5-ab2e-ddef6cf090c8");
 
-BLEStringCharacteristic RfidId(GamePawn.uuid(), BLERead | BLEWrite | BLENotify, 14);
-BLEBoolCharacteristic DisableScanner(GamePawn.uuid(), BLERead | BLEWrite | BLENotify);
+BLEStringCharacteristic RfidId(GamePawn.uuid(), BLERead | /*BLEWrite |*/ BLENotify, 14);
+BLEBoolCharacteristic DisableScanner(GamePawn.uuid(), /*BLERead |*/ BLEWrite | BLENotify);
 BLEBoolCharacteristic CallbackResponse(GamePawn.uuid(), BLERead | BLEWrite | BLENotify);
-BLEIntCharacteristic HealthCharacteristic(GamePawn.uuid(), BLERead | BLEWrite | BLENotify);
-BLEIntCharacteristic AddItemCharacteristic(GamePawn.uuid(), BLERead | BLEWrite);
-BLEIntCharacteristic UseItemCharacteristic(GamePawn.uuid(), BLERead | BLEWrite);
+BLEIntCharacteristic HealthCharacteristic(GamePawn.uuid(), BLERead | /*BLEWrite |*/ BLENotify);
+BLEIntCharacteristic AddItemCharacteristic(GamePawn.uuid(), /*BLERead |*/ BLEWrite);
+BLEIntCharacteristic UseItemCharacteristic(GamePawn.uuid(), /*BLERead |*/ BLEWrite);
 BLEByteCharacteristic Position(GamePawn.uuid(), BLERead | BLEWrite);
 BLECharacteristic InventoryCharacteristic(GamePawn.uuid(), BLERead | BLEWrite, 3);
 BLEIntCharacteristic TakeDamage(GamePawn.uuid(), BLEWrite);
+BLEIntCharacteristic Heal(GamePawn.uuid(), BLEWrite);
 
 MFRC522DriverPinSimple ss_pin(5);
 MFRC522DriverSPI driver{ss_pin}; // Create SPI driver
@@ -88,6 +91,7 @@ void setup() {
   GamePawn.addCharacteristic(Position);
   GamePawn.addCharacteristic(InventoryCharacteristic);
   GamePawn.addCharacteristic(TakeDamage);
+  GamePawn.addCharacteristic(Heal);
 
   HealthCharacteristic.writeValue(MaxHealth);
   DisableScanner.writeValue(false);
@@ -99,6 +103,7 @@ void setup() {
   Position.setEventHandler(BLEWritten, PositionChangeEvent);
   TakeDamage.setEventHandler(BLEWritten, TakeDamageEvent);
   //HealthCharacteristic.setEventHandler(BLERead, TestEvent);
+  Heal.setEventHandler(BLEWritten, HealEvent);
 
   // start advertising
   BLE.advertise();
@@ -373,6 +378,13 @@ void TakeDamageEvent(BLEDevice central, BLECharacteristic characteristic) {
 
 void TestEvent(BLEDevice central, BLECharacteristic characteristic) {
   Serial.println("Health characteristic read");
+}
+
+void HealEvent(BLEDevice central, BLECharacteristic characteristic) {
+  Serial.println("healing");
+  ChangeHealth(Heal.value());
+  UpdateDisplay();
+  UpdateHealthBar();
 }
 
 void AddItem(Item itemToAdd)
