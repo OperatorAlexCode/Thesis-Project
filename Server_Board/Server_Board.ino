@@ -99,14 +99,16 @@ enum AiChoice {
   CloseDoor,
   OpenDoor,
   CauseGasLeak,
-  SealGasLeak
+  SealGasLeak,
+  ElectricalMalfunction
 };
 
 int AiChoiceTable[] = {
-  45,
-  35,
-  15,
-  5
+  30,
+  10,
+  40,
+  10,
+  10
 };
 
 int ItemOdds[] = {
@@ -131,9 +133,9 @@ int ItemOddsSecurity[] = {
 };
 
 int ItemOddsRecCenter[] = {
-  30,
+  40,
   0,
-  70,
+  60,
   0
 };
 
@@ -145,10 +147,10 @@ int ItemOddsBunks[] = {
 };
 
 int ItemOddsAiCore[] = {
-  95,
+  90,
   0,
   0,
-  5
+  10
 };
 
 const char* Player1Id = "10e62b35-1ed8-4149-aeca-4df2e8b24132";
@@ -199,6 +201,7 @@ int ClosedDoors = 0;
 int GasLeaks = 0;
 int MaxClosedDoors = 6;
 int MaxGasLeaks = 3;
+int ElectricalMalfunctionDamage = 2;
 
 String Passcode;
 //Dictionary<int, MicroTuple<String, bool>> PasscodeDigitLocations;
@@ -280,22 +283,26 @@ void loop() {
   BLEDevice pawn2;
 
   Serial.println("Scanning for board");
-  //if (!ConnectToPeripheral(ScreenControllerId,board))
-  //  return;
+  if (!ConnectToPeripheral(ScreenControllerId,board))
+    return;
   
   Serial.println("Scanning for pawn 1");
   if (!ConnectToPeripheral(Player1Id,pawn1))
     return;
 
+  Serial.println("Scanning for pawn 2");
+  if (!ConnectToPeripheral(Player2Id,pawn2))
+    return;
+
   Serial.println("All devices connected");
 
   // Main game loop
-  if (/*board &&*/ pawn1 /*&& pawn2*/)
+  if (board && pawn1 && pawn2)
   {
     //Serial.println("Initializing characteristics");
-    //BLECharacteristic boardSetRoom = board.characteristic(ScreenControllerId, 0);
-    //BLECharacteristic boardSetState = board.characteristic(ScreenControllerId, 1);
-    //BLECharacteristic boardSetDiscovered = board.characteristic(ScreenControllerId, 2);
+    BLECharacteristic boardSetRoom = board.characteristic(ScreenControllerId, 0);
+    BLECharacteristic boardSetState = board.characteristic(ScreenControllerId, 1);
+    BLECharacteristic boardSetDiscovered = board.characteristic(ScreenControllerId, 2);
     
     BLECharacteristic scannedTag;
     BLECharacteristic disableScanner;
@@ -342,7 +349,7 @@ void loop() {
     callback.subscribe();
     health.subscribe();
 
-    //UpdateBoard(boardSetRoom, boardSetState, boardSetDiscovered);
+    UpdateBoard(boardSetRoom, boardSetState, boardSetDiscovered);
 
     //Serial.println(String("Player ")+String(PlayerTurn)+String("'s turn"));
 
@@ -365,7 +372,7 @@ void loop() {
     //health.readValue(healthTest);
     //Serial.println(String("Health left: ") + String((int)GetValue(health)));
 
-    while (/*board.connected() &&*/ pawn1.connected() /*&& pawn2.connected()*/ && !GameFinished)
+    while (board.connected() && pawn1.connected() && pawn2.connected() && !GameFinished)
     {
       String keypadOutput = GetKeypadOutputString();
       //int rand;
@@ -395,7 +402,7 @@ void loop() {
               if (!Discovered[posX][posY])
               {
                 Discovered[posX][posY] = true;
-                //UpdateRoomDiscovered(boardSetDiscovered, posX, posY);
+                UpdateRoomDiscovered(boardSetDiscovered, posX, posY);
               }
 
               if (roomStates[posX][posY] == RoomState::Locked)
@@ -407,7 +414,7 @@ void loop() {
                   Serial.println("but you open it using a keycard!");
                   useItem.writeValue((byte)GetItemIndex(inventory, 3, Item::Keycard));
                   roomStates[posX][posY] = RoomState::Normal;
-                  //UpdateRoomState(boardSetState, posX, posY);
+                  UpdateRoomState(boardSetState, posX, posY);
                 }
 
                 else
@@ -651,7 +658,13 @@ void loop() {
             GameFinished = true;
             break;
           }*/
-          if (ActionsLeft == 0)
+          if (roomStates[Player1PosX][Player1PosY] == RoomState::Locked && roomStates[Player2PosX][Player2PosY] == RoomState::Locked)
+          {
+            Serial.println("You find youself locked in and unable to get out! YOU LOSE!");
+            GameFinished = true;
+            break;
+          }
+          else if (ActionsLeft == 0)
           {
             Serial.println("Moving to next turn");
             CurrentPhase = TurnPhase::NextTurn;
@@ -722,7 +735,7 @@ void loop() {
           }
           break;
         case TurnPhase::NextTurn:
-          if (PlayerTurn == 1)
+          if (PlayerTurn == 2)
           {
             Serial.println("AI's turn");
             CurrentPhase = TurnPhase::AiTurn;
@@ -759,6 +772,10 @@ void loop() {
                 break;
             }
 
+            scannedTag.subscribe();
+            callback.subscribe();
+            health.subscribe();
+
             Serial.println(String("Player ") + String(PlayerTurn) + String("'s turn"));
 
             ActionsLeft = ActionsPerTurn;
@@ -790,7 +807,7 @@ void loop() {
           }
 
           {
-            int rand = ChooseRandomWeighted(AiChoiceTable,4);
+            int rand = ChooseRandomWeighted(AiChoiceTable, 5);
 
             bool actionPerformed = false;
 
@@ -916,10 +933,26 @@ void loop() {
                     }
                   }
                   break;
+                case AiChoice::ElectricalMalfunction:
+                  Serial.print("Causing a electrical malfunction!");
+                  int player = random(1,3);
+
+                  switch (player) {
+                    case 1:
+                      pawn1.characteristic(Player1Id, 8).writeValue((byte)ElectricalMalfunctionDamage);
+                      break;
+                    case 2:
+                      pawn2.characteristic(Player2Id, 8).writeValue((byte)ElectricalMalfunctionDamage);
+                      break;
+                  }
+
+                  Serial.println(String("Player ")+ String(player) + String(" is zapped by electricity!"));
+                  actionPerformed = true;
+                  break;
               }
           }
 
-          //UpdateBoard(boardSetRoom, boardSetState, boardSetDiscovered);
+          UpdateBoard(boardSetRoom, boardSetState, boardSetDiscovered);
           PlayerTurn = 0;
           CurrentPhase = TurnPhase::NextTurn;
           break;
@@ -1012,7 +1045,7 @@ void GenerateCode() {
 
     GetPosition((Room)numbers[x], tempx, tempy);
 
-    Serial.println(String("Digit ") + String(Passcode.charAt(x)) + String(" location is: ") + String(tempx) + String(",") + String(tempy));
+    //Serial.println(String("Digit ") + String(Passcode.charAt(x)) + String(" location is: ") + String(tempx) + String(",") + String(tempy));
   }
 }
 

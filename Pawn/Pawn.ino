@@ -21,9 +21,9 @@ enum Item
 };
 
 // Player 1
-BLEService GamePawn("10e62b35-1ed8-4149-aeca-4df2e8b24132");
+//BLEService GamePawn("10e62b35-1ed8-4149-aeca-4df2e8b24132");
 // Player 2
-//BLEService GamePawn("d2d5dba7-9225-46b5-ab2e-ddef6cf090c8");
+BLEService GamePawn("d2d5dba7-9225-46b5-ab2e-ddef6cf090c8");
 
 BLEStringCharacteristic RfidId(GamePawn.uuid(), BLERead | /*BLEWrite |*/ BLENotify, 14);
 BLEBoolCharacteristic DisableScanner(GamePawn.uuid(), /*BLERead |*/ BLEWrite | BLENotify);
@@ -50,7 +50,7 @@ int MaxHealth = 6;
 int itemsInInventory = 0;
 int maxItems = 3;
 
-int PlayerId = 1;
+int PlayerId = 2;
 
 const int InventorySize = 3;
 Item Inventory[3] /*= {Item::Medkit, Item::None, Item::Beer}*/;
