@@ -9,7 +9,9 @@
 //#include <SoftwareWire.h>
 //#define SPEAKER 6
 #include <Dictionary.h>
-#include <microTuple.h>
+//#include <microTuple.h>
+#include <tuple>
+using namespace std;
 
 enum Room {
   Bunks = 0,
@@ -198,8 +200,10 @@ int GasLeaks = 0;
 int MaxClosedDoors = 6;
 int MaxGasLeaks = 3;
 
-Dictionary<int, MicroTuple<String, bool>> PasscodeDigitLocations;
 String Passcode;
+//Dictionary<int, MicroTuple<String, bool>> PasscodeDigitLocations;
+//tuple<Room, String, bool> PasscodeDigits[SIZE];
+Dictionary<Room, tuple<String, bool>> PasscodeDigits;
 int PasscodeLength = 4;
 
 void shuffleArray(int *array, int n) {
@@ -276,8 +280,8 @@ void loop() {
   BLEDevice pawn2;
 
   Serial.println("Scanning for board");
-  if (!ConnectToPeripheral(ScreenControllerId,board))
-    return;
+  //if (!ConnectToPeripheral(ScreenControllerId,board))
+  //  return;
   
   Serial.println("Scanning for pawn 1");
   if (!ConnectToPeripheral(Player1Id,pawn1))
@@ -286,12 +290,12 @@ void loop() {
   Serial.println("All devices connected");
 
   // Main game loop
-  if (board && pawn1 /*&& pawn2*/)
+  if (/*board &&*/ pawn1 /*&& pawn2*/)
   {
     //Serial.println("Initializing characteristics");
-    BLECharacteristic boardSetRoom = board.characteristic(ScreenControllerId, 0);
-    BLECharacteristic boardSetState = board.characteristic(ScreenControllerId, 1);
-    BLECharacteristic boardSetDiscovered = board.characteristic(ScreenControllerId, 2);
+    //BLECharacteristic boardSetRoom = board.characteristic(ScreenControllerId, 0);
+    //BLECharacteristic boardSetState = board.characteristic(ScreenControllerId, 1);
+    //BLECharacteristic boardSetDiscovered = board.characteristic(ScreenControllerId, 2);
     
     BLECharacteristic scannedTag;
     BLECharacteristic disableScanner;
@@ -338,7 +342,7 @@ void loop() {
     callback.subscribe();
     health.subscribe();
 
-    UpdateBoard(boardSetRoom, boardSetState, boardSetDiscovered);
+    //UpdateBoard(boardSetRoom, boardSetState, boardSetDiscovered);
 
     //Serial.println(String("Player ")+String(PlayerTurn)+String("'s turn"));
 
@@ -361,7 +365,7 @@ void loop() {
     //health.readValue(healthTest);
     //Serial.println(String("Health left: ") + String((int)GetValue(health)));
 
-    while (board.connected() && pawn1.connected() /*&& pawn2.connected()*/ && !GameFinished)
+    while (/*board.connected() &&*/ pawn1.connected() /*&& pawn2.connected()*/ && !GameFinished)
     {
       String keypadOutput = GetKeypadOutputString();
       //int rand;
@@ -391,7 +395,7 @@ void loop() {
               if (!Discovered[posX][posY])
               {
                 Discovered[posX][posY] = true;
-                UpdateRoomDiscovered(boardSetDiscovered, posX, posY);
+                //UpdateRoomDiscovered(boardSetDiscovered, posX, posY);
               }
 
               if (roomStates[posX][posY] == RoomState::Locked)
@@ -403,7 +407,7 @@ void loop() {
                   Serial.println("but you open it using a keycard!");
                   useItem.writeValue((byte)GetItemIndex(inventory, 3, Item::Keycard));
                   roomStates[posX][posY] = RoomState::Normal;
-                  UpdateRoomState(boardSetState, posX, posY);
+                  //UpdateRoomState(boardSetState, posX, posY);
                 }
 
                 else
@@ -489,16 +493,22 @@ void loop() {
                   }
 
                   {
-                    MicroTuple<String,bool> digit = PasscodeDigitLocations.get((int)GetRoom(PlayerTurn));
-
-                    if (!digit.get<1>())
+                    //MicroTuple<String,bool> digit = PasscodeDigitLocations.get((int)GetRoom(PlayerTurn));
+                    if (PasscodeDigits.contains(GetRoom(PlayerTurn)))
                     {
-                      Serial.println(String("a number for the code"));
-                      Serial.println(String("The digit is: ") + String(digit.get<0>()));
-                      digit.rest.set<0>(true);
-                      CurrentPhase = TurnPhase::ActionPerformed;
-                      ActionsLeft--;
-                      break;
+                      tuple<String, bool> digit = PasscodeDigits.get(GetRoom(PlayerTurn));
+
+                      if (!get<1>(digit))
+                      {
+                        Serial.println(String("a number for the code!"));
+                        Serial.println(String("The digit is: ") + String(get<0>(digit)));
+                        //digit.rest.set<0>(true);
+                        get<1>(digit) = true;
+                        PasscodeDigits.set(GetRoom(PlayerTurn),digit);
+                        CurrentPhase = TurnPhase::ActionPerformed;
+                        ActionsLeft--;
+                        break;
+                      }
                     }
                   }
 
@@ -560,11 +570,19 @@ void loop() {
                 // Special
                 case 4:
                   {
-                    MicroTuple<String,bool> digit = PasscodeDigitLocations.get((int)GetRoom(PlayerTurn));
+                    //MicroTuple<String,bool> digit = PasscodeDigitLocations.get((int)GetRoom(PlayerTurn));
 
-                    if (digit.get<1>())
-                      Serial.println(String("The found digit is: ") + String(digit.get<0>()));
+                    //if (digit.get<1>())
+                    //  Serial.println(String("The found digit is: ") + String(digit.get<0>()));
+
+                    if (PasscodeDigits.contains(GetRoom(PlayerTurn)))
+                    {
+                      tuple<String, bool> digit = PasscodeDigits.get(GetRoom(PlayerTurn));
                     
+                      if (get<1>(digit))
+                        Serial.println(String("The found digit is: ") + String(get<0>(digit)));
+                    }
+
                     //else
                     switch (GetRoom(PlayerTurn)) {
                       case Room::Medbay:
@@ -577,8 +595,9 @@ void loop() {
                         Serial.println("You don't think it's a good idea to mess with the airlock . . .");
                         break;
                       case Room::AiCore:
-                        Serial.println("You go to try to input a new code");
-                        CurrentPhase == TurnPhase::InputCode;
+                        Serial.println("You go to try to input the shutdown code. . .");
+                        //Serial.println(String("TEST. CODE IS: ") + String(Passcode));
+                        CurrentPhase = TurnPhase::InputCode;
                         break;
                       default:
                         Serial.println("There is nothing special that can be done here");
@@ -653,9 +672,26 @@ void loop() {
 
               if (GetItem(inventory,3,KeypadOutput.toInt()-1) == Item::Keycard)
               {
-                Serial.println("Can't use item!");
-                CurrentPhase = TurnPhase::InRoom;
-                break;
+                int x;
+                int y;
+
+                GetPosition(GetRoom(PlayerTurn), x, y);
+
+                if (roomStates[x][y] == RoomState::Locked)
+                {
+                  Serial.println("You use a keycard to free yourself from the locked room!");
+                  ActionsLeft--;
+                  CurrentPhase = TurnPhase::ActionPerformed;
+                  roomStates[x][y] == RoomState::Normal;
+                  break;
+                }
+
+                else
+                {
+                  Serial.println("Can't use item!");
+                  CurrentPhase = TurnPhase::InRoom;
+                  break;
+                }
               }
 
               useItem.writeValue((byte)(max(0,KeypadOutput.toInt()-1)));
@@ -883,7 +919,7 @@ void loop() {
               }
           }
 
-          UpdateBoard(boardSetRoom, boardSetState, boardSetDiscovered);
+          //UpdateBoard(boardSetRoom, boardSetState, boardSetDiscovered);
           PlayerTurn = 0;
           CurrentPhase = TurnPhase::NextTurn;
           break;
@@ -966,9 +1002,17 @@ void GenerateCode() {
 
   for (int x = 0; x < PasscodeLength; x++)
   {
-    tempStr[x] = numbers[x];
-    PasscodeDigitLocations.set(random(2,16), MicroTuple<String,bool>(tempStr+String(Passcode.charAt(x)), false));
+    tempStr[x] = Passcode.charAt(x);
+    //PasscodeDigitLocations.set(random(2,16), MicroTuple<String,bool>(tempStr+String(Passcode.charAt(x)), false));
+    PasscodeDigits.set((Room)numbers[x], tuple<String,bool>(tempStr, false));
     tempStr[x] = 'X';
+
+    int tempx;
+    int tempy;
+
+    GetPosition((Room)numbers[x], tempx, tempy);
+
+    Serial.println(String("Digit ") + String(Passcode.charAt(x)) + String(" location is: ") + String(tempx) + String(",") + String(tempy));
   }
 }
 
