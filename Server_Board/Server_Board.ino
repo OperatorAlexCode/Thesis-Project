@@ -1,15 +1,11 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <ArduinoBLE.h>
-//#include <sam_arduino.h>
-//#include <AudioTools.h>
 #include <vector>
-//#include "TCA9548A.h"
-//#include <Wire.h>
-//#include <SoftwareWire.h>
-//#define SPEAKER 6
+#include "TCA9548A.h"
+#include <Wire.h>
+#include "RoomIcons.h"
 #include <Dictionary.h>
-//#include <microTuple.h>
 #include <tuple>
 using namespace std;
 
@@ -50,25 +46,6 @@ const char* RoomNames[] {
   "Aquaponics",
   "Storage"
 };
-
-/*enum RoomNames[] {
-  Bunks = "Bunks",
-  AiCore = "AI Core",
-  Kitchen = "Kitchen",
-  Reactor = "Reactor",
-  Medbay = "Medbay",
-  CargoHold = "Cargo Hold",
-  Security = "Security",
-  LifeSupport = "Life Support",
-  RecyclingCenter = "Recycling Center",
-  RecreationalCenter = "Recreational Center",
-  DrillControls = "Drill Controls",
-  OreRefinery = "Ore Refinery",
-  TrainingCenter = "Training Center",
-  Airlock = "Air lock",
-  Aquaponics = "Aquaponics",
-  Storage = "Storage"
-};*/
 
 enum RoomState {
   Normal,
@@ -155,7 +132,6 @@ int ItemOddsAiCore[] = {
 
 const char* Player1Id = "10e62b35-1ed8-4149-aeca-4df2e8b24132";
 const char* Player2Id = "d2d5dba7-9225-46b5-ab2e-ddef6cf090c8";
-const char* ScreenControllerId = "646c3367-5f9c-4b50-bc95-4701b2d8ba50";
 const int SIZE = 4;
 
 String Ids[SIZE][SIZE] = {
@@ -175,9 +151,11 @@ bool Discovered[SIZE][SIZE] /*= {
   { false, false, false, false }
 }*/;
 
+// Players
 int Player1PosX = 0, Player1PosY = 0;
 int Player2PosX = 0, Player2PosY = 0;
 
+int PlayerTurn = 1;
 int ActionsPerTurn = 2;
 int ActionsLeft = 2;
 TurnPhase CurrentPhase = TurnPhase::Moving;
@@ -191,23 +169,29 @@ String KeypadOutput = "";
 //const char* text = "Hello, nice to meet you";
 //int BassTab[] = { 1911, 1702, 1516, 1431, 1275, 1136, 1012 };
 
-int PlayerTurn = 1;
-
+// Game Settings
 bool GameFinished = false;
 bool GameStarted = false;
 bool FogOfWar = true;
 
+// AI
 int ClosedDoors = 0;
 int GasLeaks = 0;
 int MaxClosedDoors = 6;
 int MaxGasLeaks = 3;
 int ElectricalMalfunctionDamage = 2;
 
+// Passcode
 String Passcode;
 //Dictionary<int, MicroTuple<String, bool>> PasscodeDigitLocations;
 //tuple<Room, String, bool> PasscodeDigits[SIZE];
 Dictionary<Room, tuple<String, bool>> PasscodeDigits;
 int PasscodeLength = 4;
+
+// Screens
+U8G2_SH1107_SEEED_128X128_F_HW_I2C Screen(U8G2_R3, /* reset=*/ U8X8_PIN_NONE);
+TCA9548A Multi(0x70);
+TCA9548A Multi2(0x71);
 
 void shuffleArray(int *array, int n) {
   for (int i = n - 1; i > 0; --i) {
@@ -259,51 +243,58 @@ void setup() {
   Serial.begin(9600);
   while (!Serial);
 
+  //Serial.println("Serial open");
+
   Serial1.begin(9600);
   while (!Serial1);
+
+  //Serial.println("Serial1 open");
 
   if (!BLE.begin()) {
     Serial.println("starting Bluetooth® Low Energy module failed!");
     while (1);
   }
 
+  //BLE.setLocalName("Game Server");
+  //BLE.setDeviceName("Game Server");
+
   Serial.println("Server initialized");
 
   Discovered[0][0] = true;
   assignArray();
   GenerateCode();
+  InitialzeScreens();
+  UpdateBoard();
+
+  //BLE.begin();
   
   //CurrentPhase = TurnPhase::NextTurn;
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  BLEDevice board;
   BLEDevice pawn1;
   BLEDevice pawn2;
-
-  Serial.println("Scanning for board");
-  if (!ConnectToPeripheral(ScreenControllerId,board))
-    return;
   
   Serial.println("Scanning for pawn 1");
   if (!ConnectToPeripheral(Player1Id,pawn1))
     return;
 
+  //if (!ConnectToPeripheral(String("Player 1"),pawn1))
+  //  return;
+
   Serial.println("Scanning for pawn 2");
   if (!ConnectToPeripheral(Player2Id,pawn2))
     return;
 
+  //if (!ConnectToPeripheral(String("Player 2"),pawn2))
+  //  return;
+
   Serial.println("All devices connected");
 
   // Main game loop
-  if (board && pawn1 && pawn2)
-  {
-    //Serial.println("Initializing characteristics");
-    BLECharacteristic boardSetRoom = board.characteristic(ScreenControllerId, 0);
-    BLECharacteristic boardSetState = board.characteristic(ScreenControllerId, 1);
-    BLECharacteristic boardSetDiscovered = board.characteristic(ScreenControllerId, 2);
-    
+  if (pawn1 && pawn2)
+  {    
     BLECharacteristic scannedTag;
     BLECharacteristic disableScanner;
     BLECharacteristic callback;
@@ -349,7 +340,7 @@ void loop() {
     callback.subscribe();
     health.subscribe();
 
-    UpdateBoard(boardSetRoom, boardSetState, boardSetDiscovered);
+    UpdateBoard();
 
     //Serial.println(String("Player ")+String(PlayerTurn)+String("'s turn"));
 
@@ -372,7 +363,7 @@ void loop() {
     //health.readValue(healthTest);
     //Serial.println(String("Health left: ") + String((int)GetValue(health)));
 
-    while (board.connected() && pawn1.connected() && pawn2.connected() && !GameFinished)
+    while (pawn1.connected() && pawn2.connected() && !GameFinished)
     {
       String keypadOutput = GetKeypadOutputString();
       //int rand;
@@ -402,7 +393,7 @@ void loop() {
               if (!Discovered[posX][posY])
               {
                 Discovered[posX][posY] = true;
-                UpdateRoomDiscovered(boardSetDiscovered, posX, posY);
+                UpdateRoom(posX,posY);
               }
 
               if (roomStates[posX][posY] == RoomState::Locked)
@@ -414,7 +405,7 @@ void loop() {
                   Serial.println("but you open it using a keycard!");
                   useItem.writeValue((byte)GetItemIndex(inventory, 3, Item::Keycard));
                   roomStates[posX][posY] = RoomState::Normal;
-                  UpdateRoomState(boardSetState, posX, posY);
+                  UpdateRoom(posX,posY);
                 }
 
                 else
@@ -479,7 +470,9 @@ void loop() {
           if (keypadOutput != "")
           {
             int rand = 0;
+
             if (keypadOutput == "#") {
+              Serial.println(KeypadOutput);
               switch (KeypadOutput.toInt())
               {
                 // Search
@@ -952,7 +945,7 @@ void loop() {
               }
           }
 
-          UpdateBoard(boardSetRoom, boardSetState, boardSetDiscovered);
+          UpdateBoard();
           PlayerTurn = 0;
           CurrentPhase = TurnPhase::NextTurn;
           break;
@@ -1006,9 +999,6 @@ void loop() {
 
   //BLE.scanForUuid(Player1Id);
 
-  if (board)
-    board.disconnect();
-
   if (pawn1)
     pawn1.disconnect();
 
@@ -1019,6 +1009,22 @@ void loop() {
 
   //Stops game once finished
   while (GameFinished);
+}
+
+void InitialzeScreens() {
+  Wire.begin();
+
+  Multi.begin(Wire);
+  Multi2.begin(Wire);
+
+  Multi.openAll();
+  Multi2.openAll();
+  Screen.begin();
+  Screen.setFont(u8g2_font_8x13_te);
+  Screen.enableUTF8Print();
+  Screen.clearBuffer();
+  Multi.closeAll();
+  Multi2.closeAll();
 }
 
 void GenerateCode() {
@@ -1228,8 +1234,12 @@ int GetKeypadOutput() {
 String GetKeypadOutputString() {
   String output = "";
 
+  //Serial.print("Serial_available");
+  //Serial.println(Serial1.available());
+
   if (Serial1.available()) {
-    //Serial.print("Reading keyboard output:");
+    //Serial.print("Serial_read");
+    //Serial.println(Serial1.read());
     switch (Serial1.read()) {
       case 0xE1:
         output = String("1");
@@ -1273,57 +1283,16 @@ String GetKeypadOutputString() {
   return output;
 }
 
-void UpdateBoard(BLECharacteristic setRoom, BLECharacteristic setState, BLECharacteristic setDiscovered) {
-  for (int y = 0; y < 4; y++)
-    for (int x = 0; x < 4; x++)
-      {
-        byte roomValue = (y*4 + x) << 4;
-        roomValue += matrix[x][y];
-        byte stateValue = (y*4 + x) << 4;
-        stateValue += roomStates[x][y];
-        byte discoveredValue = (y*4 + x) << 4;
-
-        if (FogOfWar)
-          discoveredValue += (int)Discovered[x][y];
-
-        else
-          discoveredValue += 1;
-        
-        setDiscovered.writeValue(discoveredValue);
-        setRoom.writeValue(roomValue);
-        setState.writeValue(stateValue);
-
-        delay(20);
-      }
-}
-
-void UpdateRoom(BLECharacteristic setRoom, int x, int y) {
-  byte value = (y*4 + x) << 4;
-  value += matrix[x][y];
-  setRoom.writeValue(value);
-}
-
-void UpdateRoomState(BLECharacteristic setState, int x, int y) {
-  byte stateValue = (y*4 + x) << 4;
-  stateValue += roomStates[x][y];
-  setState.writeValue(stateValue);
-}
-
-void UpdateRoomDiscovered(BLECharacteristic setDiscovered, int x, int y) {
-  byte value = (y*4 + x) << 4;
-  value += Discovered[x][y];
-  setDiscovered.writeValue(value);
-}
-
 // Tries connecting to peripheral. Returns true if connecting is succesfull, otherwise it's false.
-bool ConnectToPeripheral(const char *id,BLEDevice &deviceToConnect) {
+bool ConnectToPeripheral(const char *id, BLEDevice &deviceToConnect) {
   BLE.scanForUuid(id);
   BLEDevice peripheral = BLE.available();
 
+  //Serial.println(String(peripheral));
+
   while (!peripheral) {
-    delay(100);
+    delay(10);
     peripheral = BLE.available();
-    //Serial.println("Scanning for pawn 1");
   }
 
   //Serial.print("Found ");
@@ -1333,6 +1302,54 @@ bool ConnectToPeripheral(const char *id,BLEDevice &deviceToConnect) {
   //Serial.print("' ");
   //Serial.print(peripheral.advertisedServiceUuid());
   //Serial.println();
+
+  Serial.println("Found device");
+
+  if (peripheral.localName() != "") 
+    BLE.stopScan();
+
+  if (!peripheral.connect())
+  {
+    Serial.println("Can't Connect");
+    //pawn1 = NULL;
+    return false;
+  }
+
+  if (!peripheral.discoverAttributes())
+  {
+    Serial.println("Can't discover attributes");
+    peripheral.disconnect();
+    //pawn1 = NULL;
+    return false;
+  }
+  
+  Serial.println("Connection established");
+
+  deviceToConnect = peripheral;
+  return true;
+}
+
+// Tries connecting to peripheral. Returns true if connecting is succesfull, otherwise it's false.
+bool ConnectToPeripheral(String name, BLEDevice &deviceToConnect) {
+  BLE.scanForName(name);
+  BLEDevice peripheral = BLE.available();
+
+  //Serial.println(String(peripheral));
+
+  while (!peripheral) {
+    delay(10);
+    peripheral = BLE.available();
+  }
+
+  //Serial.print("Found ");
+  //Serial.print(peripheral.address());
+  //Serial.print(" '");
+  //Serial.print(peripheral.localName());
+  //Serial.print("' ");
+  //Serial.print(peripheral.advertisedServiceUuid());
+  //Serial.println();
+
+  Serial.println("Found device");
 
   if (peripheral.localName() != "") 
     BLE.stopScan();
@@ -1451,4 +1468,110 @@ Item GetItem(BLECharacteristic inventory, int size, int index) {
   byte inv[3];
   inventory.readValue(inv,3);
   return (Item)inv[index];
+}
+
+void UpdateBoard() {
+  for (int x = 0; x < SIZE; x++)
+    for (int y = 0; y < SIZE; y++)
+      UpdateRoom(x, y);
+}
+
+void UpdateRoom(int xPos, int yPos) {
+  if (yPos >= 2)
+    Multi2.openChannel((4*yPos+xPos)%8);
+
+  else
+    Multi.openChannel((4*yPos+xPos)%8);
+
+  Screen.clearBuffer();
+
+  if (!FogOfWar || (FogOfWar && Discovered[xPos][yPos]))
+  switch(matrix[xPos][yPos])
+  {
+    case Room::Bunks:
+      Screen.drawXBMP(0,0,128,128,bunks);
+      break;
+    case Room::AiCore:
+      Screen.drawXBMP(0,0,128,128,aiCore);
+      break;
+    case Room::Kitchen:
+      Screen.drawXBMP(0,0,128,128,kitchen);
+      break;
+    case Room::Reactor:
+      Screen.drawXBMP(0,0,128,128,reactor);
+      break;
+    case Room::Medbay:
+      Screen.drawXBMP(0,0,128,128,medbay);
+      break;
+    case Room::CargoHold:
+      Screen.drawXBMP(0,0,128,128,cargoHold);
+      break;
+    case Room::Security:
+      Screen.drawXBMP(0,0,128,128,armory);
+      break;
+    case Room::LifeSupport:
+      Screen.drawXBMP(0,0,128,128,lifeSupport);
+      break;
+    case Room::RecyclingCenter:
+      Screen.drawXBMP(0,0,128,128,recyclingCenter);
+      break;
+    case Room::RecreationalCenter:
+      Screen.drawXBMP(0,0,128,128,recreationalCenter);
+      break;
+    case Room::DrillControls:
+      Screen.drawXBMP(0,0,128,128,drillControls);
+      break;
+    case Room::OreRefinery:
+      Screen.drawXBMP(0,0,128,128,oreRefinery);
+      break;
+    case Room::TrainingCenter:
+      Screen.drawXBMP(0,0,128,128,trainingCenter);
+      break;
+    case Room::Airlock:
+      Screen.drawXBMP(0,0,128,128,airLock);
+      break;
+    case Room::Aquaponics:
+      Screen.drawXBMP(0,0,128,128,aquaponics);
+      break;
+    case Room::Storage:
+      Screen.drawXBMP(0,0,128,128,storage);
+      break;
+    default:
+      String output = String("Screen ") + String((4*yPos+xPos));
+      Screen.drawStr(0, 10, output.c_str());
+      break;
+  }
+
+  switch ((Room)roomStates[xPos][yPos]) {
+    case RoomState::Locked:
+      for (int x = 0; x < 6; x++)
+        Screen.drawFrame(x, x, 128-x*2, 128-x*2);
+
+      break;
+    case RoomState::GasLeak:
+      int circleradius = 8;
+      int circleCenter = circleradius+1;
+
+      Screen.drawDisc(0,0,circleradius);
+      Screen.drawDisc(127,0,circleradius);
+      Screen.drawDisc(0,127,circleradius);
+      Screen.drawDisc(127,127,circleradius);
+
+      for (int x = 0; x < 8; x++)
+      {
+        Screen.drawDisc(x*16, 0, circleradius);
+        Screen.drawDisc(x*16, 127, circleradius);
+        Screen.drawDisc(0, x*16, circleradius);
+        Screen.drawDisc(127, x*16, circleradius);
+      }
+      break;
+  }
+
+  Screen.sendBuffer();
+
+  if (yPos >= 2)
+    Multi2.closeChannel((4*yPos+xPos)%8);
+
+  else
+    Multi.closeChannel((4*yPos+xPos)%8);
 }
