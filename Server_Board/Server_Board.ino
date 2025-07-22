@@ -175,6 +175,8 @@ bool GameStarted = false;
 bool FogOfWar = true;
 
 // AI
+int AIActionsPerTurn = 2;
+int AIActionsLeft = 2;
 int ClosedDoors = 0;
 int GasLeaks = 0;
 int MaxClosedDoors = 6;
@@ -347,10 +349,12 @@ void loop() {
       //UpdateBoard(boardSetRoom, boardSetState);
     }
 
-    if (CurrentPhase == TurnPhase::Moving)
+    switch (CurrentPhase)
     {
+      case TurnPhase::Moving:
       disableScanner.writeValue((byte)0);
       Serial.println("Where do you want to move?");
+      break;
     }
     
     //byte healthTest;
@@ -431,41 +435,9 @@ void loop() {
 
             bool moving = false;
 
-            GetPosition(PlayerTurn, posX, posY);
+            GetPosition(PlayerTurn,posX,posY);
 
-            switch (keypadOutput.toInt())
-            {
-              case Direction::North:
-                if (posY < SIZE)
-                {
-                  posY++;
-                  moving = true;
-                }
-                break;
-              case Direction::East:
-                if (posX > 0)
-                {
-                  posX--;
-                  moving = true;
-                }
-                break;
-              case Direction::West:
-                if (posX < SIZE)
-                {
-                  posX++;
-                  moving = true;
-                }
-                break;
-              case Direction::South:
-                if (posY > 0)
-                {
-                  posY--;
-                  moving = true;
-                }
-                break;
-            }
-
-            if (moving)
+            if (GetPosition((Direction)keypadOutput.toInt(),posX,posY))
             {
               if (!Discovered[posX][posY])
               {
@@ -785,6 +757,7 @@ void loop() {
           if (PlayerTurn == 2)
           {
             Serial.println("AI's turn");
+            AIActionsLeft = AIActionsPerTurn;
             CurrentPhase = TurnPhase::AiTurn;
           }
           else
@@ -846,34 +819,35 @@ void loop() {
           }
           break;
         case TurnPhase::AiTurn:
-          Serial.print("AI decides to" /*"The AI is trying to stop you! AI decides to"*/);
-          for (int x = 0; x < 3; x++)
+          while (AIActionsLeft > 0)
           {
-            delay(400);
-            Serial.print(". ");
-          }
-
-          {
+            Serial.print("AI decides to" /*"The AI is trying to stop you! AI decides to"*/);
+            for (int x = 0; x < 3; x++)
+            {
+              delay(400);
+              Serial.print(". ");
+            }
+            
             int rand = ChooseRandomWeighted(AiChoiceTable, 5);
 
             bool actionPerformed = false;
 
-            while (!actionPerformed)
-              switch((AiChoice)rand) {
-                case AiChoice::OpenDoor:
-                  if (ClosedDoors == 0)
-                  {
-                    rand = (int)AiChoice::CloseDoor;
-                    break;
-                  }
+            while (actionPerformed)
+            switch((AiChoice)rand) {
+              case AiChoice::OpenDoor:
+                if (ClosedDoors == 0)
+                {
+                  rand = (int)AiChoice::CloseDoor;
+                  break;
+                }
 
-                  Serial.println("Unlock a room!");
-                  {
-                    rand = random(0, ClosedDoors);
+                Serial.println("Unlock a room!");
+                {
+                  rand = random(0, ClosedDoors);
 
-                    int closedDoor = 0;
+                  int closedDoor = 0;
 
-                    for (int x = 0; x < SIZE; x++)
+                  for (int x = 0; x < SIZE; x++)
                     for (int y = 0; y < SIZE; y++)
                     {
                       if (roomStates[x][y] == RoomState::Locked)
@@ -884,6 +858,7 @@ void loop() {
                           ClosedDoors--;
                           actionPerformed = true;
 
+
                           if (!FogOfWar || (FogOfWar && Discovered[x][y]))
                             Serial.println(String(" ") + String(RoomNames[matrix[x][y]]) + String(" is now open!"));
                         }
@@ -891,76 +866,76 @@ void loop() {
                         closedDoor++;
                       }
                     }
-                  }
+                }
+                break;
+              case AiChoice::CloseDoor:
+                if (ClosedDoors == MaxClosedDoors)
+                {
+                  rand = (int)AiChoice::OpenDoor;
                   break;
-                case AiChoice::CloseDoor:
-                  if (ClosedDoors == MaxClosedDoors)
-                  {
-                    rand = (int)AiChoice::OpenDoor;
-                    break;
-                  }
+                }
 
-                  Serial.println("Lock a room!");
-                  {
-                    int posX = 0;
-                    int posY = 0;
+                Serial.println("Lock a room!");
+                {
+                  int posX = 0;
+                  int posY = 0;
 
-                    rand = random(2, 16);
+                  rand = random(2, 16);
 
+                  GetPosition((Room)rand,posX,posY);
+
+                  while (roomStates[posX][posY] != RoomState::Normal)
                     GetPosition((Room)rand,posX,posY);
 
-                    while (roomStates[posX][posY] != RoomState::Normal)
-                      GetPosition((Room)rand,posX,posY);
+                  roomStates[posX][posY] = RoomState::Locked;
+                  ClosedDoors++;
+                  actionPerformed = true;
 
-                    roomStates[posX][posY] = RoomState::Locked;
-                    ClosedDoors++;
-                    actionPerformed = true;
-
-                    if (!FogOfWar || (FogOfWar && Discovered[posX][posY]))
-                      Serial.println(String(" ") + String(RoomNames[matrix[posX][posY]]) + String(" is now locked!"));
-                  }
+                  if (!FogOfWar || (FogOfWar && Discovered[posX][posY]))
+                    Serial.println(String(" ") + String(RoomNames[matrix[posX][posY]]) + String(" is now locked!"));
+                }
+                break;
+              case AiChoice::CauseGasLeak:
+                if (GasLeaks == MaxGasLeaks)
+                {
+                  rand = (int)AiChoice::SealGasLeak;
                   break;
-                case AiChoice::CauseGasLeak:
-                  if (GasLeaks == MaxGasLeaks)
-                  {
-                    rand = (int)AiChoice::SealGasLeak;
-                    break;
-                  }
+                }
 
-                  Serial.println("Cause a gas leak!");
-                  {
-                    int posX = 0;
-                    int posY = 0;
+                Serial.println("Cause a gas leak!");
+                {
+                  int posX = 0;
+                  int posY = 0;
 
-                    rand = random(2, 16);
+                  rand = random(2, 16);
 
+                  GetPosition((Room)rand,posX,posY);
+
+                  while (roomStates[posX][posY] != RoomState::Normal)
                     GetPosition((Room)rand,posX,posY);
 
-                    while (roomStates[posX][posY] != RoomState::Normal)
-                      GetPosition((Room)rand,posX,posY);
+                  roomStates[posX][posY] = RoomState::GasLeak;
+                  GasLeaks++;
+                  actionPerformed = true;
 
-                    roomStates[posX][posY] = RoomState::GasLeak;
-                    GasLeaks++;
-                    actionPerformed = true;
-
-                    if (!FogOfWar || (FogOfWar && Discovered[posX][posY]))
-                      Serial.println(String("A gas leak has appeared in ") + String(RoomNames[matrix[posX][posY]]) + String("!"));
-                  }
+                  if (!FogOfWar || (FogOfWar && Discovered[posX][posY]))
+                    Serial.println(String("A gas leak has appeared in ") + String(RoomNames[matrix[posX][posY]]) + String("!"));
+                }
+                break;
+              case AiChoice::SealGasLeak:
+                if (GasLeaks == 0)
+                {
+                  rand = (int)AiChoice::CauseGasLeak;
                   break;
-                case AiChoice::SealGasLeak:
-                  if (GasLeaks == 0)
-                  {
-                    rand = (int)AiChoice::CauseGasLeak;
-                    break;
-                  }
+                }
 
-                  Serial.println("Seal a gas leak!");
-                  {
-                    rand = random(0, ClosedDoors);
+                Serial.println("Seal a gas leak!");
+                {
+                  rand = random(0, ClosedDoors);
 
-                    int leaks = 0;
+                  int leaks = 0;
 
-                    for (int x = 0; x < SIZE; x++)
+                  for (int x = 0; x < SIZE; x++)
                     for (int y = 0; y < SIZE; y++)
                     {
                       if (roomStates[x][y] == RoomState::GasLeak)
@@ -970,6 +945,7 @@ void loop() {
                           roomStates[x][y] = RoomState::Normal;
                           GasLeaks--;
                           actionPerformed = true;
+                          AIActionsLeft--;
                           
                           if (!FogOfWar || (FogOfWar && Discovered[x][y]))
                             Serial.println(String("The gas leak ") + String(RoomNames[matrix[x][y]]) + String(" has been sealed!"));
@@ -978,25 +954,29 @@ void loop() {
                         leaks++;
                       }
                     }
-                  }
-                  break;
-                case AiChoice::ElectricalMalfunction:
-                  Serial.print("Causing a electrical malfunction!");
-                  int player = random(1,3);
+                }
+                break;
+              case AiChoice::ElectricalMalfunction:
+                Serial.print("Causing a electrical malfunction!");
+                int player = random(1,3);
 
-                  switch (player) {
-                    case 1:
-                      pawn1.characteristic(Player1Id, 8).writeValue((byte)ElectricalMalfunctionDamage);
-                      break;
-                    case 2:
-                      pawn2.characteristic(Player2Id, 8).writeValue((byte)ElectricalMalfunctionDamage);
-                      break;
-                  }
+                switch (player) {
+                  case 1:
+                    pawn1.characteristic(Player1Id, 8).writeValue((byte)ElectricalMalfunctionDamage);
+                    break;
+                  case 2:
+                    pawn2.characteristic(Player2Id, 8).writeValue((byte)ElectricalMalfunctionDamage);
+                    break;
+                }
 
-                  Serial.println(String("Player ")+ String(player) + String(" is zapped by electricity!"));
-                  actionPerformed = true;
-                  break;
+                Serial.println(String("Player ")+ String(player) + String(" is zapped by electricity!"));
+                actionPerformed = true;
+                AIActionsLeft--;
+                break;
               }
+
+              AIActionsLeft--;
+              Serial.println(String("AI actions left: ") + String( AIActionsLeft));
           }
 
           UpdateBoard();
@@ -1214,6 +1194,32 @@ bool GetPosition(int player, int &xOut, int &yOut) {
       return true;
     default:
       return false;
+  }
+}
+
+bool GetPosition(Direction direction, int &xPos, int &yPos) {
+  switch (direction)
+  {
+    case Direction::North:
+      if (yPos < SIZE-1)
+        yPos++;
+
+      return yPos < SIZE;
+    case Direction::East:
+      if (xPos > 0)
+        xPos--;
+
+      return xPos >= 0;
+    case Direction::West:
+      if (xPos < SIZE-1)
+        xPos++;
+
+      return xPos < SIZE;
+    case Direction::South:
+      if (yPos > 0)
+        yPos--;
+
+      return yPos >= 0;
   }
 }
 
