@@ -9,6 +9,13 @@
 #include <tuple>
 using namespace std;
 
+enum Direction {
+  North = 2,
+  South = 8,
+  East = 6,
+  West = 4
+};
+
 enum Room {
   Bunks = 0,
   AiCore = 1,
@@ -162,13 +169,6 @@ TurnPhase CurrentPhase = TurnPhase::Moving;
 
 String KeypadOutput = "";
 
-//I2SStream output;
-
-//SAM Voice(Serial,true);
-//SAM Voice(output);
-//const char* text = "Hello, nice to meet you";
-//int BassTab[] = { 1911, 1702, 1516, 1431, 1275, 1136, 1012 };
-
 // Game Settings
 bool GameFinished = false;
 bool GameStarted = false;
@@ -280,15 +280,9 @@ void loop() {
   if (!ConnectToPeripheral(Player1Id,pawn1))
     return;
 
-  //if (!ConnectToPeripheral(String("Player 1"),pawn1))
-  //  return;
-
   Serial.println("Scanning for pawn 2");
   if (!ConnectToPeripheral(Player2Id,pawn2))
     return;
-
-  //if (!ConnectToPeripheral(String("Player 2"),pawn2))
-  //  return;
 
   Serial.println("All devices connected");
 
@@ -415,17 +409,7 @@ void loop() {
                 }
               }
 
-              switch (PlayerTurn)
-              {
-                case 1:
-                  Player1PosX = posX;
-                  Player1PosY = posY;
-                  break;
-                case 2:
-                  Player2PosX = posX;
-                  Player2PosY = posY;
-                  break;
-              }
+              SetPosition(PlayerTurn,posX,posY);
 
               position.writeValue((byte)((posX << 4) + posY));
 
@@ -440,30 +424,100 @@ void loop() {
             else
               Serial.println("Room is not Adjacent!");
           }
-          else if (keypadOutput == "*")
+          else if (keypadOutput == "2" || keypadOutput == "4" || keypadOutput == "6" || keypadOutput == "8")
+          {
+            int posX;
+            int posY;
+
+            bool moving = false;
+
+            GetPosition(PlayerTurn, posX, posY);
+
+            switch (keypadOutput.toInt())
+            {
+              case Direction::North:
+                if (posY < SIZE)
+                {
+                  posY++;
+                  moving = true;
+                }
+                break;
+              case Direction::East:
+                if (posX > 0)
+                {
+                  posX--;
+                  moving = true;
+                }
+                break;
+              case Direction::West:
+                if (posX < SIZE)
+                {
+                  posX++;
+                  moving = true;
+                }
+                break;
+              case Direction::South:
+                if (posY > 0)
+                {
+                  posY--;
+                  moving = true;
+                }
+                break;
+            }
+
+            if (moving)
+            {
+              if (!Discovered[posX][posY])
+              {
+                Discovered[posX][posY] = true;
+                UpdateRoom(posX,posY);
+              }
+
+              if (roomStates[posX][posY] == RoomState::Locked)
+              {
+                Serial.print("The room is locked, ");
+
+                if (IsInInventory(inventory, 3, Item::Keycard))
+                {
+                  Serial.println("but you open it using a keycard!");
+                  useItem.writeValue((byte)GetItemIndex(inventory, 3, Item::Keycard));
+                  roomStates[posX][posY] = RoomState::Normal;
+                  UpdateRoom(posX,posY);
+                }
+
+                else
+                {
+                  Serial.println("and you have no keycard!");
+                  break;
+                }
+              }
+
+              SetPosition(PlayerTurn,posX,posY);
+
+              position.writeValue((byte)((posX << 4) + posY));
+
+              Serial.print("Moving to: ");
+              Serial.println(RoomNames[matrix[posX][posY]]);
+              //Serial.println(String(" | ") + String(posX) + ", " + String(posY));
+              CurrentPhase = TurnPhase::ActionPerformed;
+              ActionsLeft = ActionsPerTurn;
+              disableScanner.writeValue((byte)1);
+            }
+            else
+             Serial.println("Room out of bounds!");
+          }
+          else if (keypadOutput == "5")
           {
             int posX = 0;
             int posY = 0;
 
-            switch (PlayerTurn)
-            {
-              case 1:
-                posX = Player1PosX;
-                posY = Player1PosY;
-                break;
-              case 2:
-                posX = Player2PosX;
-                posY = Player2PosY;
-                break;
-            }
+            GetPosition(PlayerTurn, posX, posY);
 
             Serial.print("Staying in: ");
             Serial.println(RoomNames[matrix[posX][posY]]);
-            //Serial.println(String(" | ") + String(posX) + ", " + String(posY));
             CurrentPhase = TurnPhase::PassTime;
             ActionsLeft = ActionsPerTurn;
             disableScanner.writeValue((byte)1);
-            //Serial.print(String("What do you want to do? (")+String("Actions left: ")+String(ActionsLeft)+String(")"));
           }
           break;
         case TurnPhase::InRoom:
@@ -1148,7 +1202,7 @@ bool GetPosition(Room room, int &xOut, int &yOut) {
   return false;
 }
 
-bool GetPosition(int player,int &xOut, int &yOut) {
+bool GetPosition(int player, int &xOut, int &yOut) {
   switch(player) {
     case 1:
       xOut = Player1PosX;
@@ -1160,6 +1214,19 @@ bool GetPosition(int player,int &xOut, int &yOut) {
       return true;
     default:
       return false;
+  }
+}
+
+bool SetPosition(int player, int x, int y) {
+  switch (player) {
+    case 1:
+      Player1PosX = x;
+      Player1PosY = y;
+      break;
+    case 2:
+      Player2PosX = x;
+      Player2PosY = y;
+      break;
   }
 }
 
@@ -1542,7 +1609,8 @@ void UpdateRoom(int xPos, int yPos) {
       break;
   }
 
-  switch ((Room)roomStates[xPos][yPos]) {
+  switch ((Room)roomStates[xPos][yPos])
+  {
     case RoomState::Locked:
       for (int x = 0; x < 6; x++)
         Screen.drawFrame(x, x, 128-x*2, 128-x*2);
