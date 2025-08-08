@@ -498,7 +498,7 @@ void loop() {
             int rand = 0;
 
             if (keypadOutput == "#") {
-              Serial.println(KeypadOutput);
+              //Serial.println(KeypadOutput);
               switch (KeypadOutput.toInt())
               {
                 // Search
@@ -584,6 +584,12 @@ void loop() {
                   break;
                 // Use
                 case 2:
+                  if (IsInventoryEmpty(inventory, 3))
+                  {
+                    Serial.println("There are no items to use!");
+                    break;
+                  }
+                  
                   CurrentPhase = TurnPhase::UseItem;
                   Serial.println("What item do you want to use?");
                   break;
@@ -679,6 +685,9 @@ void loop() {
           }*/
           if (roomStates[Player1PosX][Player1PosY] == RoomState::Locked && roomStates[Player2PosX][Player2PosY] == RoomState::Locked)
           {
+            if (IsInInventory(pawn1.characteristic(Player1Id,7), 3, Item::Keycard) || IsInInventory(pawn2.characteristic(Player2Id,7), 3, Item::Keycard))
+              break;
+
             Serial.println("You find youself locked in and unable to get out! YOU LOSE!");
             GameFinished = true;
             break;
@@ -707,15 +716,15 @@ void loop() {
                 int x;
                 int y;
 
-                GetPosition(GetRoom(PlayerTurn), x, y);
+                GetPosition(PlayerTurn, x, y);
 
                 if (roomStates[x][y] == RoomState::Locked)
                 {
                   Serial.println("You use a keycard to free yourself from the locked room!");
-                  ActionsLeft--;
+                  roomStates[x][y] = RoomState::Normal;
+                  UpdateRoom(x,y);
                   CurrentPhase = TurnPhase::ActionPerformed;
-                  roomStates[x][y] == RoomState::Normal;
-                  break;
+                  ActionsLeft--;
                 }
 
                 else
@@ -832,151 +841,162 @@ void loop() {
 
             bool actionPerformed = false;
 
-            while (actionPerformed)
-            switch((AiChoice)rand) {
-              case AiChoice::OpenDoor:
-                if (ClosedDoors == 0)
-                {
-                  rand = (int)AiChoice::CloseDoor;
-                  break;
-                }
+            while (!actionPerformed)
+            {
+              switch((AiChoice)rand) {
+                case AiChoice::OpenDoor:
+                  if (ClosedDoors == 0)
+                  {
+                    rand = (int)AiChoice::CloseDoor;
+                    break;
+                  }
 
-                Serial.println("Unlock a room!");
-                {
-                  rand = random(0, ClosedDoors);
+                  Serial.println("Unlock a room!");
+                  {
+                    rand = random(0, ClosedDoors);
 
-                  int closedDoor = 0;
+                    int closedDoor = 0;
 
-                  for (int x = 0; x < SIZE; x++)
-                    for (int y = 0; y < SIZE; y++)
-                    {
-                      if (roomStates[x][y] == RoomState::Locked)
+                    for (int x = 0; x < SIZE; x++)
+                      for (int y = 0; y < SIZE; y++)
                       {
-                        if (closedDoor == rand)
+                        if (roomStates[x][y] == RoomState::Locked)
                         {
-                          roomStates[x][y] = RoomState::Normal;
-                          ClosedDoors--;
-                          actionPerformed = true;
+                          if (closedDoor == rand)
+                          {
+                            roomStates[x][y] = RoomState::Normal;
+                            ClosedDoors--;
+                            actionPerformed = true;
 
+                            if (!FogOfWar || (FogOfWar && Discovered[x][y]))
+                              Serial.println(String(" ") + String(RoomNames[matrix[x][y]]) + String(" is now open!"));
 
-                          if (!FogOfWar || (FogOfWar && Discovered[x][y]))
-                            Serial.println(String(" ") + String(RoomNames[matrix[x][y]]) + String(" is now open!"));
+                            break;
+                          }
+
+                          closedDoor++;
                         }
-
-                        closedDoor++;
                       }
-                    }
-                }
-                break;
-              case AiChoice::CloseDoor:
-                if (ClosedDoors == MaxClosedDoors)
-                {
-                  rand = (int)AiChoice::OpenDoor;
+                  }
                   break;
-                }
+                case AiChoice::CloseDoor:
+                  if (ClosedDoors == MaxClosedDoors)
+                  {
+                    rand = (int)AiChoice::OpenDoor;
+                    break;
+                  }
 
-                Serial.println("Lock a room!");
-                {
-                  int posX = 0;
-                  int posY = 0;
+                  Serial.println("Lock a room!");
+                  {
+                    int posX = 0;
+                    int posY = 0;
 
-                  rand = random(2, 16);
+                    rand = random(2, 16);
 
-                  GetPosition((Room)rand,posX,posY);
-
-                  while (roomStates[posX][posY] != RoomState::Normal)
                     GetPosition((Room)rand,posX,posY);
 
-                  roomStates[posX][posY] = RoomState::Locked;
-                  ClosedDoors++;
-                  actionPerformed = true;
+                    while (roomStates[posX][posY] != RoomState::Normal)
+                    {
+                      rand = random(2, 16);
+                      //Serial.println(String("X:") + String(posX) + String(" | Y: ") + String(posY) + String(" | ") + String(roomStates[posX][posY]));
+                      GetPosition((Room)rand,posX,posY);
+                    }
 
-                  if (!FogOfWar || (FogOfWar && Discovered[posX][posY]))
-                    Serial.println(String(" ") + String(RoomNames[matrix[posX][posY]]) + String(" is now locked!"));
-                }
-                break;
-              case AiChoice::CauseGasLeak:
-                if (GasLeaks == MaxGasLeaks)
-                {
-                  rand = (int)AiChoice::SealGasLeak;
+                    roomStates[posX][posY] = RoomState::Locked;
+                    ClosedDoors++;
+                    actionPerformed = true;
+
+                    if (!FogOfWar || (FogOfWar && Discovered[posX][posY]))
+                      Serial.println(String(" ") + String(RoomNames[matrix[posX][posY]]) + String(" is now locked!"));
+                  }
                   break;
-                }
+                case AiChoice::CauseGasLeak:
+                  if (GasLeaks == MaxGasLeaks)
+                  {
+                    rand = (int)AiChoice::SealGasLeak;
+                    break;
+                  }
 
-                Serial.println("Cause a gas leak!");
-                {
-                  int posX = 0;
-                  int posY = 0;
+                  Serial.println("Cause a gas leak!");
+                  {
+                    int posX = 0;
+                    int posY = 0;
 
-                  rand = random(2, 16);
+                    rand = random(2, 16);
 
-                  GetPosition((Room)rand,posX,posY);
-
-                  while (roomStates[posX][posY] != RoomState::Normal)
                     GetPosition((Room)rand,posX,posY);
 
-                  roomStates[posX][posY] = RoomState::GasLeak;
-                  GasLeaks++;
-                  actionPerformed = true;
-
-                  if (!FogOfWar || (FogOfWar && Discovered[posX][posY]))
-                    Serial.println(String("A gas leak has appeared in ") + String(RoomNames[matrix[posX][posY]]) + String("!"));
-                }
-                break;
-              case AiChoice::SealGasLeak:
-                if (GasLeaks == 0)
-                {
-                  rand = (int)AiChoice::CauseGasLeak;
-                  break;
-                }
-
-                Serial.println("Seal a gas leak!");
-                {
-                  rand = random(0, ClosedDoors);
-
-                  int leaks = 0;
-
-                  for (int x = 0; x < SIZE; x++)
-                    for (int y = 0; y < SIZE; y++)
+                    while (roomStates[posX][posY] != RoomState::Normal)
                     {
-                      if (roomStates[x][y] == RoomState::GasLeak)
-                      {
-                        if (leaks == rand)
-                        {
-                          roomStates[x][y] = RoomState::Normal;
-                          GasLeaks--;
-                          actionPerformed = true;
-                          AIActionsLeft--;
-                          
-                          if (!FogOfWar || (FogOfWar && Discovered[x][y]))
-                            Serial.println(String("The gas leak ") + String(RoomNames[matrix[x][y]]) + String(" has been sealed!"));
-                        }
-
-                        leaks++;
-                      }
+                      rand = random(2, 16);
+                      //Serial.println(String("X:") + String(posX) + String(" | Y: ") + String(posY) + String(" | ") + String(roomStates[posX][posY]));
+                      GetPosition((Room)rand,posX,posY);
                     }
-                }
-                break;
-              case AiChoice::ElectricalMalfunction:
-                Serial.print("Causing a electrical malfunction!");
-                int player = random(1,3);
 
-                switch (player) {
-                  case 1:
-                    pawn1.characteristic(Player1Id, 8).writeValue((byte)ElectricalMalfunctionDamage);
-                    break;
-                  case 2:
-                    pawn2.characteristic(Player2Id, 8).writeValue((byte)ElectricalMalfunctionDamage);
-                    break;
-                }
+                    roomStates[posX][posY] = RoomState::GasLeak;
+                    GasLeaks++;
+                    actionPerformed = true;
 
-                Serial.println(String("Player ")+ String(player) + String(" is zapped by electricity!"));
-                actionPerformed = true;
-                AIActionsLeft--;
-                break;
+                    if (!FogOfWar || (FogOfWar && Discovered[posX][posY]))
+                      Serial.println(String("A gas leak has appeared in ") + String(RoomNames[matrix[posX][posY]]) + String("!"));
+                  }
+                  break;
+                case AiChoice::SealGasLeak:
+                  if (GasLeaks == 0)
+                  {
+                    rand = (int)AiChoice::CauseGasLeak;
+                    break;
+                  }
+
+                  Serial.println("Seal a gas leak!");
+                  {
+                    rand = random(0, ClosedDoors);
+
+                    int leaks = 0;
+
+                    for (int x = 0; x < SIZE; x++)
+                      for (int y = 0; y < SIZE; y++)
+                      {
+                        if (roomStates[x][y] == RoomState::GasLeak)
+                        {
+                          if (leaks == rand)
+                          {
+                            roomStates[x][y] = RoomState::Normal;
+                            GasLeaks--;
+                            actionPerformed = true;
+                            
+                            if (!FogOfWar || (FogOfWar && Discovered[x][y]))
+                              Serial.println(String("The gas leak ") + String(RoomNames[matrix[x][y]]) + String(" has been sealed!"));
+
+                            break;
+                          }
+
+                          leaks++;
+                        }
+                      }
+                  }
+                  break;
+                case AiChoice::ElectricalMalfunction:
+                  Serial.println("Causing a electrical malfunction!");
+                  int player = random(1,3);
+
+                  switch (player) {
+                    case 1:
+                      pawn1.characteristic(Player1Id, 8).writeValue((byte)ElectricalMalfunctionDamage);
+                      break;
+                    case 2:
+                      pawn2.characteristic(Player2Id, 8).writeValue((byte)ElectricalMalfunctionDamage);
+                      break;
+                  }
+
+                  Serial.println(String("Player ")+ String(player) + String(" is zapped by electricity!"));
+                  actionPerformed = true;
+                  break;
               }
+            }
 
-              AIActionsLeft--;
-              Serial.println(String("AI actions left: ") + String( AIActionsLeft));
+            AIActionsLeft--;
+            Serial.println(String("AI actions left: ") + String( AIActionsLeft));
           }
 
           UpdateBoard();
@@ -1206,15 +1226,15 @@ bool GetPosition(Direction direction, int &xPos, int &yPos) {
 
       return yPos < SIZE;
     case Direction::East:
-      if (xPos > 0)
-        xPos--;
-
-      return xPos >= 0;
-    case Direction::West:
       if (xPos < SIZE-1)
         xPos++;
 
       return xPos < SIZE;
+    case Direction::West:
+      if (xPos > 0)
+        xPos--;
+
+      return xPos >= 0;
     case Direction::South:
       if (yPos > 0)
         yPos--;
@@ -1499,8 +1519,8 @@ int CurrentlyClosedDoors() {
 }
 
 bool IsInventoryFull(BLECharacteristic inventory, int size) {
-  byte inv[3];
-  inventory.readValue(inv,3);
+  byte inv[size];
+  inventory.readValue(inv,size);
 
   for (int x = 0; x < size; x++)
     if (inventory[x] == Item::None)
@@ -1509,6 +1529,17 @@ bool IsInventoryFull(BLECharacteristic inventory, int size) {
   return true;
 }
 
+bool IsInventoryEmpty(BLECharacteristic inventory, int size) {
+  byte inv[size];
+  inventory.readValue(inv,size);
+
+  for (int x = 0; x < size; x++)
+    if (inventory[x] != Item::None)
+      return false;
+
+  return true;
+} 
+
 int GetValue(BLECharacteristic characteristic) {
   int32_t value;
   characteristic.readValue(value);
@@ -1516,8 +1547,8 @@ int GetValue(BLECharacteristic characteristic) {
 }
 
 bool IsInInventory(BLECharacteristic inventory, int size, Item itemToSearch) {
-  byte inv[3];
-  inventory.readValue(inv,3);
+  byte inv[size];
+  inventory.readValue(inv,size);
 
   for (int x = 0; x < size; x++)
     if (inventory[x] == itemToSearch)
@@ -1527,8 +1558,8 @@ bool IsInInventory(BLECharacteristic inventory, int size, Item itemToSearch) {
 }
 
 int GetItemIndex(BLECharacteristic inventory, int size, Item getIndexOf) {
-  byte inv[3];
-  inventory.readValue(inv,3);
+  byte inv[size];
+  inventory.readValue(inv,size);
 
   for (int x = 0; x < size; x++)
     if (inventory[x] == getIndexOf)
@@ -1538,8 +1569,8 @@ int GetItemIndex(BLECharacteristic inventory, int size, Item getIndexOf) {
 }
 
 Item GetItem(BLECharacteristic inventory, int size, int index) {
-  byte inv[3];
-  inventory.readValue(inv,3);
+  byte inv[size];
+  inventory.readValue(inv,size);
   return (Item)inv[index];
 }
 

@@ -47,40 +47,40 @@ void printData() {
         uint8_t data = Serial1.read();
         switch(data) {
                 case 0xE1 :
-                    Serial1.println("1");
+                    Serial.println("1");
                     break;
                 case 0xE2 :
-                    Serial1.println("2");
+                    Serial.println("2");
                     break;
                 case 0xE3 :
-                    Serial1.println("3");
+                    Serial.println("3");
                     break;
                 case 0xE4 :
-                    Serial1.println("4");
+                    Serial.println("4");
                     break;
                 case 0xE5 :
-                    Serial1.println("5");
+                    Serial.println("5");
                     break;
                 case 0xE6 :
-                    Serial1.println("6");
+                    Serial.println("6");
                     break;
                 case 0xE7 :
-                    Serial1.println("7");
+                    Serial.println("7");
                     break;
                 case 0xE8 :
-                    Serial1.println("8");
+                    Serial.println("8");
                     break;
                 case 0xE9 :
-                    Serial1.println("9");
+                    Serial.println("9");
                     break;
                 case 0xEA :
-                    Serial1.println("*");
+                    Serial.println("*");
                     break;
                 case 0xEB :
-                    Serial1.println("0");
+                    Serial.println("0");
                     break;
                 case 0xEC :
-                    Serial1.println("#");
+                    Serial.println("#");
                     break;
                 default:
                     break;
