@@ -209,7 +209,7 @@ void assignArray() {
 
   // Fill array with numbers 1 to 15
   for (int i = 0; i < SIZE * SIZE - 1; ++i) {
-    numbers[i] = i + 2;
+    numbers[i] = i + 1;
   }
   //numbers[SIZE * SIZE - 1] = 0;
 
@@ -222,9 +222,9 @@ void assignArray() {
     for (int j = 0; j < SIZE; ++j) {
       if (i == 0 && j == 0) {
         matrix[i][j] = 0;
-      } else if (i == SIZE - 1 && j == SIZE - 1) {
+      } /*else if (i == SIZE - 1 && j == SIZE - 1) {
         matrix[i][j] = 1;
-      } else {
+      }*/ else {
         matrix[i][j] = numbers[index++];
       }
     }
@@ -265,6 +265,10 @@ void setup() {
   Discovered[0][0] = true;
   assignArray();
   GenerateCode();
+  //int x = 0;
+  //int y = 0;
+  //GetPosition(Room::AiCore, x, y);
+  //roomStates[x][y] = RoomState::Locked;
   InitialzeScreens();
   UpdateBoard();
 
@@ -631,6 +635,106 @@ void loop() {
                         //Serial.println(String("TEST. CODE IS: ") + String(Passcode));
                         CurrentPhase = TurnPhase::InputCode;
                         break;
+                      case Room::LifeSupport:
+                        if (GasLeaks == 0)
+                        {
+                          Serial.println("There are no gas leaks to seal!");
+                          break;
+                        }
+
+                        Serial.print("Trying to seal a gas leak");
+                        for (int x = 0; x < 3; x++)
+                        {
+                          delay(400);
+                          Serial.print(". ");
+                        }
+
+                        rand = random(0,10);
+
+                        if (rand < 3)
+                        {
+                          Serial.println("Succesfull!");
+                          rand = random(0, GasLeaks);
+
+                          int leaks = 0;
+
+                          for (int x = 0; x < SIZE; x++)
+                            for (int y = 0; y < SIZE; y++)
+                            {
+                              if (roomStates[x][y] == RoomState::GasLeak)
+                              {
+                                if (leaks == rand)
+                                {
+                                  roomStates[x][y] = RoomState::Normal;
+                                  GasLeaks--;
+                                  
+                                  if (!FogOfWar || (FogOfWar && Discovered[x][y]))
+                                    Serial.println(String("The gas leak in ") + String(RoomNames[matrix[x][y]]) + String(" has been sealed!"));
+                                }
+
+                                leaks++;
+                              }
+                            }
+                        }
+
+                        else
+                        {
+                          Serial.println("Unsuccesfull");
+                        }
+
+                        CurrentPhase = TurnPhase::ActionPerformed;
+                        ActionsLeft--;
+                        break;
+                      case Room::Security:
+                        if (GasLeaks == 0)
+                        {
+                          Serial.println("There are no gas leaks to seal!");
+                          break;
+                        }
+
+                        Serial.print("Trying to seal a gas leak");
+                        for (int x = 0; x < 3; x++)
+                        {
+                          delay(400);
+                          Serial.print(". ");
+                        }
+
+                        rand = random(0,10);
+
+                        if (rand < 3)
+                        {
+                          Serial.println("Succesfull!");
+                          rand = random(0, ClosedDoors);
+
+                          int closedDoor = 0;
+
+                          for (int x = 0; x < SIZE; x++)
+                            for (int y = 0; y < SIZE; y++)
+                            {
+                              if (roomStates[x][y] == RoomState::Locked)
+                              {
+                                if (closedDoor == rand)
+                                {
+                                  roomStates[x][y] = RoomState::Normal;
+                                  ClosedDoors--;
+                                  
+                                  if (!FogOfWar || (FogOfWar && Discovered[x][y]))
+                                    Serial.println(String(RoomNames[matrix[x][y]]) + String(" has been unlocked!"));
+                                }
+
+                                closedDoor++;
+                              }
+                            }
+                        }
+
+                        else
+                        {
+                          Serial.println("Unsuccesfull");
+                        }
+
+                        CurrentPhase = TurnPhase::ActionPerformed;
+                        ActionsLeft--;
+                        break;
                       default:
                         Serial.println("There is nothing special that can be done here");
                         break;
@@ -869,7 +973,7 @@ void loop() {
                             actionPerformed = true;
 
                             if (!FogOfWar || (FogOfWar && Discovered[x][y]))
-                              Serial.println(String(" ") + String(RoomNames[matrix[x][y]]) + String(" is now open!"));
+                              Serial.println(String(RoomNames[matrix[x][y]]) + String(" has been unlocked!"));
 
                             break;
                           }
@@ -950,7 +1054,7 @@ void loop() {
 
                   Serial.println("Seal a gas leak!");
                   {
-                    rand = random(0, ClosedDoors);
+                    rand = random(0, GasLeaks);
 
                     int leaks = 0;
 
@@ -966,7 +1070,7 @@ void loop() {
                             actionPerformed = true;
                             
                             if (!FogOfWar || (FogOfWar && Discovered[x][y]))
-                              Serial.println(String("The gas leak ") + String(RoomNames[matrix[x][y]]) + String(" has been sealed!"));
+                              Serial.println(String("The gas leak in") + String(RoomNames[matrix[x][y]]) + String(" has been sealed!"));
 
                             break;
                           }
@@ -1590,86 +1694,88 @@ void UpdateRoom(int xPos, int yPos) {
   Screen.clearBuffer();
 
   if (!FogOfWar || (FogOfWar && Discovered[xPos][yPos]))
-  switch(matrix[xPos][yPos])
   {
-    case Room::Bunks:
-      Screen.drawXBMP(0,0,128,128,bunks);
-      break;
-    case Room::AiCore:
-      Screen.drawXBMP(0,0,128,128,aiCore);
-      break;
-    case Room::Kitchen:
-      Screen.drawXBMP(0,0,128,128,kitchen);
-      break;
-    case Room::Reactor:
-      Screen.drawXBMP(0,0,128,128,reactor);
-      break;
-    case Room::Medbay:
-      Screen.drawXBMP(0,0,128,128,medbay);
-      break;
-    case Room::CargoHold:
-      Screen.drawXBMP(0,0,128,128,cargoHold);
-      break;
-    case Room::Security:
-      Screen.drawXBMP(0,0,128,128,armory);
-      break;
-    case Room::LifeSupport:
-      Screen.drawXBMP(0,0,128,128,lifeSupport);
-      break;
-    case Room::RecyclingCenter:
-      Screen.drawXBMP(0,0,128,128,recyclingCenter);
-      break;
-    case Room::RecreationalCenter:
-      Screen.drawXBMP(0,0,128,128,recreationalCenter);
-      break;
-    case Room::DrillControls:
-      Screen.drawXBMP(0,0,128,128,drillControls);
-      break;
-    case Room::OreRefinery:
-      Screen.drawXBMP(0,0,128,128,oreRefinery);
-      break;
-    case Room::TrainingCenter:
-      Screen.drawXBMP(0,0,128,128,trainingCenter);
-      break;
-    case Room::Airlock:
-      Screen.drawXBMP(0,0,128,128,airLock);
-      break;
-    case Room::Aquaponics:
-      Screen.drawXBMP(0,0,128,128,aquaponics);
-      break;
-    case Room::Storage:
-      Screen.drawXBMP(0,0,128,128,storage);
-      break;
-    default:
-      String output = String("Screen ") + String((4*yPos+xPos));
-      Screen.drawStr(0, 10, output.c_str());
-      break;
-  }
+    switch(matrix[xPos][yPos])
+    {
+      case Room::Bunks:
+        Screen.drawXBMP(0,0,128,128,bunks);
+        break;
+      case Room::AiCore:
+        Screen.drawXBMP(0,0,128,128,aiCore);
+        break;
+      case Room::Kitchen:
+        Screen.drawXBMP(0,0,128,128,kitchen);
+        break;
+      case Room::Reactor:
+        Screen.drawXBMP(0,0,128,128,reactor);
+        break;
+      case Room::Medbay:
+        Screen.drawXBMP(0,0,128,128,medbay);
+        break;
+      case Room::CargoHold:
+        Screen.drawXBMP(0,0,128,128,cargoHold);
+        break;
+      case Room::Security:
+        Screen.drawXBMP(0,0,128,128,armory);
+        break;
+      case Room::LifeSupport:
+        Screen.drawXBMP(0,0,128,128,lifeSupport);
+        break;
+      case Room::RecyclingCenter:
+        Screen.drawXBMP(0,0,128,128,recyclingCenter);
+        break;
+      case Room::RecreationalCenter:
+        Screen.drawXBMP(0,0,128,128,recreationalCenter);
+        break;
+      case Room::DrillControls:
+        Screen.drawXBMP(0,0,128,128,drillControls);
+        break;
+      case Room::OreRefinery:
+        Screen.drawXBMP(0,0,128,128,oreRefinery);
+        break;
+      case Room::TrainingCenter:
+        Screen.drawXBMP(0,0,128,128,trainingCenter);
+        break;
+      case Room::Airlock:
+        Screen.drawXBMP(0,0,128,128,airLock);
+        break;
+      case Room::Aquaponics:
+        Screen.drawXBMP(0,0,128,128,aquaponics);
+        break;
+      case Room::Storage:
+        Screen.drawXBMP(0,0,128,128,storage);
+        break;
+      default:
+        String output = String("Screen ") + String((4*yPos+xPos));
+        Screen.drawStr(0, 10, output.c_str());
+        break;
+    }
 
-  switch ((Room)roomStates[xPos][yPos])
-  {
-    case RoomState::Locked:
-      for (int x = 0; x < 6; x++)
-        Screen.drawFrame(x, x, 128-x*2, 128-x*2);
+    switch ((Room)roomStates[xPos][yPos])
+    {
+      case RoomState::Locked:
+        for (int x = 0; x < 6; x++)
+          Screen.drawFrame(x, x, 128-x*2, 128-x*2);
 
-      break;
-    case RoomState::GasLeak:
-      int circleradius = 8;
-      int circleCenter = circleradius+1;
+        break;
+      case RoomState::GasLeak:
+        int circleradius = 8;
+        int circleCenter = circleradius+1;
 
-      Screen.drawDisc(0,0,circleradius);
-      Screen.drawDisc(127,0,circleradius);
-      Screen.drawDisc(0,127,circleradius);
-      Screen.drawDisc(127,127,circleradius);
+        Screen.drawDisc(0,0,circleradius);
+        Screen.drawDisc(127,0,circleradius);
+        Screen.drawDisc(0,127,circleradius);
+        Screen.drawDisc(127,127,circleradius);
 
-      for (int x = 0; x < 8; x++)
-      {
-        Screen.drawDisc(x*16, 0, circleradius);
-        Screen.drawDisc(x*16, 127, circleradius);
-        Screen.drawDisc(0, x*16, circleradius);
-        Screen.drawDisc(127, x*16, circleradius);
-      }
-      break;
+        for (int x = 0; x < 8; x++)
+        {
+          Screen.drawDisc(x*16, 0, circleradius);
+          Screen.drawDisc(x*16, 127, circleradius);
+          Screen.drawDisc(0, x*16, circleradius);
+          Screen.drawDisc(127, x*16, circleradius);
+        }
+        break;
+    }
   }
 
   Screen.sendBuffer();
